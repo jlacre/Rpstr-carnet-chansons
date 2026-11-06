@@ -138,11 +138,29 @@ function edit(){
  const d=$("#del");if(d)d.onclick=()=>{if(confirm("Supprimer « "+s.titre+" » ?")){fdel(s.id+":midi");fdel(s.id+":audio");db=db.filter(x=>x.id!=s.id);remove(s.id);save();go({n:"list"})}}}
 function fld([k,l,t],s){return `<div><label>${l}</label><input type="${t||"text"}" id="f_${k}" value="${esc(s[k])}"></div>`}
 async function dl(name,type,data){try{const d=await claude.use("downloads");if(d){await d.save({filename:name,data});return}}catch(e){if(e&&e.code=="declined")return}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click()}
-function menu(){const c=prompt("1 = Exporter tout (JSON, avec fichiers)\n2 = Importer (JSON)\n3 = Exporter (CSV)\n4 = Synchroniser maintenant\n5 = Se déconnecter");
- if(c=="1")(async()=>{const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,files:f}))})();
- else if(c=="3"){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").replace(/"/g,'""')+'"';dl("psr_chansons.csv","text/csv",[k.map(e).join(","),...db.map(s=>k.map(x=>e(s[x])).join(","))].join("\n"))}
- else if(c=="2"){const i=document.createElement("input");i.type="file";i.accept=".json";i.onchange=async()=>{try{let a=JSON.parse(await i.files[0].text()),f={};if(!Array.isArray(a)){f=a.files||{};a=a.songs}if(!Array.isArray(a))throw 0;a.forEach(x=>{const j=db.findIndex(y=>y.id==x.id);if(j<0)db.push(x);else db[j]=x;touch(x.id)});save();for(const k in f){const bl=await (await fetch(f[k].data)).blob();await fput(k,{name:f[k].name,blob:bl})}render()}catch(e){alert("Fichier invalide.")}};i.click()}
- else if(c=="4")sync(true);else if(c=="5")logout()}
+async function doImport(file){
+ try{let a=JSON.parse(await file.text()),f={};if(!Array.isArray(a)){f=a.files||{};a=a.songs}if(!Array.isArray(a))throw new Error("format");
+  a.forEach(x=>{const j=db.findIndex(y=>y.id==x.id);if(j<0)db.push(x);else db[j]=x;touch(x.id)});persist();
+  for(const k in f){const bl=await (await fetch(f[k].data)).blob();await fput(k,{name:f[k].name,blob:bl})}
+  await sync(true);alert(a.length+" fiches importées. "+syncMsg)}
+ catch(e){alert("Fichier invalide ou import impossible : "+e.message)}}
+async function exportAll(){const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,files:f}))}
+function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").replace(/"/g,'""')+'"';dl("psr_chansons.csv","text/csv",[k.map(e).join(","),...db.map(s=>k.map(x=>e(s[x])).join(","))].join("\n"))}
+function menu(){
+ const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
+ o.innerHTML=`<div style="background:var(--bg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px">
+ <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches</div>
+ <label class="btn" style="text-align:center;cursor:pointer">Importer un fichier JSON<input type="file" id="mi" accept=".json,application/json,text/plain,*/*" style="display:none"></label>
+ <button class="btn sec" id="m4">Synchroniser maintenant</button>
+ <button class="btn sec" id="m1">Exporter tout (JSON, avec fichiers)</button>
+ <button class="btn sec" id="m3">Exporter (CSV)</button>
+ <button class="btn sec" id="m5">Se déconnecter</button>
+ <button class="btn sec" id="mx">Fermer</button></div>`;
+ document.body.appendChild(o);const close=()=>o.remove();
+ o.onclick=e=>{if(e.target==o)close()};$("#mx").onclick=close;
+ $("#mi").onchange=e=>{const f=e.target.files[0];close();if(f)doImport(f)};
+ $("#m4").onclick=async()=>{close();await sync(true);alert("Synchronisation : "+syncMsg+" — "+db.length+" fiches.")};
+ $("#m1").onclick=()=>{close();exportAll()};$("#m3").onclick=()=>{close();exportCsv()};$("#m5").onclick=()=>{close();logout()}}
 boot();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
