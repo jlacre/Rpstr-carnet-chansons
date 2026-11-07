@@ -127,6 +127,27 @@ function chords(txt,t){return (txt||"").split("\n").map(l=>{
  for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<span class="sg"><i data-c="${esc(c)}">${esc(c)}</i><u>${esc(p[i+1])||" "}</u></span>`}
  return `<div class="ln">${h}</div>`}).join("")}
 
+/* ===== Conversion grille "accords au-dessus" ({Am} ou Am) -> accords [entre crochets] ===== */
+const hasGrille=x=>/^[ \t]*\{[A-G][^}:]*\}/m.test(x||"");
+function grille2cp(txt){
+ const CH=/^[A-G][#b♯♭]?(?:m|maj|min|dim|aug|sus|add|M|\+|°|ø|-)?[0-9]*(?:(?:sus|add|maj|dim|aug|b|#)?[0-9]*)*(?:\/[A-G][#b♯♭]?)?$/;
+ const toks=l=>{const o=[];const re=/(?:\{([^}]*)\})+|\S+/g;let m;
+  if(/\{/.test(l)){const r=/\{([^}]*)\}/g;let g=null,last=-9;while((m=r.exec(l))){const c=m[1].trim();if(!c)continue;if(g&&m.index==last){g.cs.push(c)}else{g={col:0,cs:[c],raw:m.index};o.push(g)}last=m.index+m[0].length}
+   let removed=0,k=0;const pos=[];const r2=/\{([^}]*)\}/g;let mm;const starts=[];while((mm=r2.exec(l))){starts.push([mm.index,mm[0].length])}
+   o.forEach(g=>{g.col=g.raw});return o}
+  const r3=/\S+/g;while((m=r3.exec(l))){o.push({col:m.index,cs:[m[0]]})}return o};
+ const isChordLine=l=>{if(!l.trim())return false;if(/\{[^}]*\}/.test(l))return !l.replace(/\{[^}]*\}/g,"").replace(/[\s_]/g,"")&&(l.match(/\{[^}]*\}/g)||[]).every(x=>CH.test(x.slice(1,-1).trim()));
+  const w=l.trim().split(/\s+/);return w.length>0&&w.every(x=>CH.test(x))};
+ const lines=String(txt).replace(/\r/g,"").split("\n"),out=[];
+ for(let i=0;i<lines.length;i++){const l=lines[i];
+  if(!isChordLine(l)){out.push(l);continue}
+  const cs=toks(l),nx=lines[i+1];
+  if(nx!==undefined&&nx.trim()&&!isChordLine(nx)){let ly=nx;
+   for(const g of cs.slice().sort((a,b)=>b.col-a.col)){const br=g.cs.map(c=>"["+c+"]").join("");if(ly.length<g.col)ly=ly.padEnd(g.col," ");ly=ly.slice(0,g.col)+br+ly.slice(g.col)}
+   out.push(ly);i++}
+  else out.push(cs.map(g=>g.cs.map(c=>"["+c+"]").join("")).join(" "))}
+ return out.join("\n").replace(/(\S)_+(?=\S)/g,"$1 ").replace(/[ \t]*_+[ \t]*/g," ").replace(/(\S) {2,}/g,"$1 ").replace(/[ \t]+$/gm,"").replace(/\n{3,}/g,"\n\n")}
+
 /* ===== MIDI : lecture dans l'appli ===== */
 function parseMidi(buf){
  const u=new Uint8Array(buf),d=new DataView(buf);let p=0;const str=n=>{let s="";for(let i=0;i<n;i++)s+=String.fromCharCode(u[p++]);return s};
@@ -358,16 +379,19 @@ function edit(){
  <div><label>Fichier MIDI</label><div id="fm"></div><input type="file" id="im" accept=".mid,.midi,audio/midi,audio/x-midi"></div>
  <div><label>Audio</label><div id="fa"></div><input type="file" id="ia" accept="audio/*"> <button class="btn sec" id="rec" type="button">● Enregistrer</button></div>
  <div><label>Remarques</label><textarea id="f_remarques" rows="2">${esc(s.remarques)}</textarea></div>
- <div><label>Accords — écrire les accords entre crochets, juste avant la syllabe : [Am]Besame [Dm]mucho</label><textarea id="f_accords" rows="14" style="font-family:ui-monospace,monospace">${esc(s.accords)}</textarea></div>
+ <div><label>Accords — écrire les accords entre crochets, juste avant la syllabe : [Am]Besame [Dm]mucho</label><textarea id="f_accords" rows="14" style="font-family:ui-monospace,monospace">${esc(s.accords)}</textarea><button class="btn sec" id="cvg" type="button" style="margin-top:6px">⇄ Convertir une grille collée (accords au-dessus du texte)</button></div>
  ${isNew?"":`${s.midi?'<button class="btn sec" type="button" id="xm">Retirer le MIDI</button>':""}${s.audio?'<button class="btn sec" type="button" id="xa">Retirer l’audio</button>':""}<button class="btn sec" id="del" style="color:var(--ac)">Supprimer cette chanson</button>`}</form>`;
  let note=s.note||0,pm,pa,rc;
  const lab=()=>{$("#fm").textContent=pm=="del"?"(sera supprimé)":pm?pm.name:s.midi||"";$("#fa").textContent=pa=="del"?"(sera supprimé)":pa?pa.name:s.audio||""};lab();
  $("#im").onchange=e=>{pm=e.target.files[0];lab()};$("#ia").onchange=e=>{pa=e.target.files[0];lab()};
  $("#rec").onclick=async()=>{try{if(rc){rc.stop();return}const st=await navigator.mediaDevices.getUserMedia({audio:true}),ch=[];rc=new MediaRecorder(st);rc.ondataavailable=e=>ch.push(e.data);
   rc.onstop=()=>{st.getTracks().forEach(x=>x.stop());pa=new File(ch,"enregistrement-"+new Date().toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm",{type:rc.mimeType});rc=null;$("#rec").textContent="● Enregistrer";lab()};rc.start();$("#rec").textContent="■ Arrêter"}catch(e){alert("Micro indisponible ici.")}};document.querySelectorAll("#st span").forEach(e=>e.onclick=()=>{note=note==+e.dataset.n?0:+e.dataset.n;document.querySelectorAll("#st span").forEach(x=>x.classList.toggle("on",+x.dataset.n<=note))});
- $("#ok").onclick=async()=>{const o={...s,note};[...FD.map(f=>f[0]),"statut","clavier","remarques","accords"].forEach(k=>o[k]=$("#f_"+k).value);
+ $("#ok").onclick=async()=>{const o={...s,note};cvt();[...FD.map(f=>f[0]),"statut","clavier","remarques","accords"].forEach(k=>o[k]=$("#f_"+k).value);
   if(!o.titre.trim())return alert("Le titre est obligatoire.");for(const [k,p] of [["midi",pm],["audio",pa]]){if(p=="del"){await fdel(o.id+":"+k);o[k]=""}else if(p){if(await fput(o.id+":"+k,{name:p.name,blob:p}))o[k]=p.name}}
   if(isNew)db.push(o);else db[db.findIndex(x=>x.id==s.id)]=o;touch(o.id);save();go({n:"show",id:o.id,t:0})};
+ const cvt=()=>{const ta=$("#f_accords");if(hasGrille(ta.value))ta.value=grille2cp(ta.value)};
+ $("#cvg").onclick=()=>{const ta=$("#f_accords");ta.value=grille2cp(ta.value)};
+ $("#f_accords").addEventListener("paste",()=>setTimeout(cvt,0));
  const xm=$("#xm"),xa=$("#xa");if(xm)xm.onclick=()=>{pm="del";lab()};if(xa)xa.onclick=()=>{pa="del";lab()};
  const d=$("#del");if(d)d.onclick=()=>{if(confirm("Supprimer « "+s.titre+" » ?")){fdel(s.id+":midi");fdel(s.id+":audio");db=db.filter(x=>x.id!=s.id);remove(s.id);save();go({n:"list"})}}}
 function fld([k,l,t],s){return `<div><label>${l}</label><input type="${t||"text"}" id="f_${k}" value="${esc(s[k])}"></div>`}
