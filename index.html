@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#9e2013"><link rel="apple-touch-icon" href="icon-192.png"><title>PSR Chansons</title>
+<link rel="manifest" href="manifest.json"><title>PSR Chansons</title>
 <style>
 :root{--bg:#fff;--fg:#1c1b1a;--mut:#6b6762;--card:#f6f3f1;--line:#e3ded9;--ac:#9e2013;--chord:#566896;--ok:#3d8f3d;--wip:#a8a100;--todo:#777;--inc:#c26a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#161514;--fg:#eee9e4;--mut:#a09a94;--card:#222120;--line:#38352f;--ac:#d9534a;--chord:#8fa6e0;--ok:#6cc16c;--wip:#d8d04a;--todo:#a0a0a0;--inc:#ee9a3a}}
@@ -52,6 +52,11 @@ a{color:var(--chord)}.hide{display:none}
 .lc .ls{color:var(--mut);margin-left:auto}.lc .lv{min-width:3em}
 #pip .lc{background:#222;color:#fff}#pip .lc button{background:#444;color:#fff;border-color:#555}#pip .lc button.on{background:#c0392b;border-color:#c0392b}#pip .lc select{background:#444;color:#fff;border-color:#555}#pip .lc .ls{color:#ccc}
 #ytbox{aspect-ratio:16/9;background:#000}#ytbox iframe{display:block;width:100%;height:100%;aspect-ratio:auto;border:0}
+
+.mc{border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:8px;background:var(--card)}
+.mh{font-weight:600;margin-bottom:6px}.mh small{font-weight:400;color:var(--mut);margin-left:6px;word-break:break-all}
+.mb{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mb input[type=range]{flex:1;min-width:120px;width:auto;padding:0}
+.mq{font-size:12px;color:var(--mut)}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -64,23 +69,26 @@ let stT;function save(){persist();clearTimeout(stT);stT=setTimeout(()=>sync(),60
 const SB="https://lagqskvqnftcxpdncuju.supabase.co",PK="sb_publishable_gnpmELpeqJvJjOgvb_OmpA_LksRnQbh",SK="psr_ses",QK="psr_queue";
 const jget=k=>{try{return JSON.parse(localStorage.getItem(k))}catch(e){return null}},jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let ses=jget(SK),Q=jget(QK)||{},syncMsg="",syncing=0;
-const touch=id=>{Q[id]="u";jset(QK,Q)},remove=id=>{Q[id]="d";jset(QK,Q)};
+const touch=id=>{Q[id]={a:"u",t:Date.now()};jset(QK,Q)},remove=id=>{Q[id]={a:"d",t:Date.now()};jset(QK,Q)};
 async function authCall(grant,body){let r;try{r=await fetch(SB+"/auth/v1/token?grant_type="+grant,{method:"POST",headers:{apikey:PK,"Content-Type":"application/json"},body:JSON.stringify(body)})}catch(e){throw new Error("net")}
  if(!r.ok)throw new Error("auth");const j=await r.json();ses={access_token:j.access_token,refresh_token:j.refresh_token,expires_at:Math.floor(Date.now()/1000)+j.expires_in,uid:j.user.id};jset(SK,ses)}
 async function tok(){if(!ses)throw new Error("auth");if(ses.expires_at-60<Date.now()/1000){try{await authCall("refresh_token",{refresh_token:ses.refresh_token})}catch(e){if(e.message=="auth"){ses=null;try{localStorage.removeItem(SK)}catch(x){}}throw e}}return ses.access_token}
 async function api(path,opt={}){const t=await tok();let r;try{r=await fetch(SB+path,{...opt,headers:{apikey:PK,Authorization:"Bearer "+t,...(opt.headers||{})}})}catch(e){throw new Error("net")}
  if(!r.ok)throw new Error(r.status+" "+(await r.text()).slice(0,120));return r}
 async function sync(manual){if(syncing)return;syncing=1;syncMsg="synchronisation…";if(view.n=="list")list();
- try{for(const id of Object.keys(Q)){if(Q[id]=="d")await api("/rest/v1/songs?id=eq."+encodeURIComponent(id),{method:"DELETE"});
-   else{const s=db.find(x=>x.id==id);if(s){const {id:_,...data}=s;await api("/rest/v1/songs?on_conflict=id",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({id,data,updated_at:new Date().toISOString()})})}}
+ try{for(const id of Object.keys(Q)){const qv=Q[id],act=typeof qv=="string"?qv:qv.a,qt=typeof qv=="string"?0:qv.t;
+   if(act=="d")await api("/rest/v1/songs?id=eq."+encodeURIComponent(id),{method:"DELETE"});
+   else{const s=db.find(x=>x.id==id);let newer=false;
+    if(s&&qt){const r=await (await api("/rest/v1/songs?select=updated_at&id=eq."+encodeURIComponent(id))).json();newer=r.length&&Date.parse(r[0].updated_at)>qt}
+    if(s&&!newer){const {id:_,...data}=s;await api("/rest/v1/songs?on_conflict=id",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({id,data,updated_at:new Date().toISOString()})})}}
    delete Q[id];jset(QK,Q)}
   const rows=await (await api("/rest/v1/songs?select=id,data&limit=5000")).json();
   db=rows.map(r=>({...r.data,id:r.id}));persist();syncMsg="synchronisé à "+new Date().toTimeString().slice(0,5);
  }catch(e){if(e.message=="auth"){syncing=0;return login()}syncMsg=e.message=="net"?"hors ligne (modifications gardées)":"erreur : "+e.message;if(manual)alert("Synchronisation impossible : "+e.message)}
  finally{syncing=0;if(view.n=="list")list()}}
 const fpath=k=>{const [id,kind]=k.split(":");return ses.uid+"/"+id+"/"+kind};
-async function fput(k,v){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"POST",headers:{"Content-Type":v.blob.type||"application/octet-stream","x-upsert":"true"},body:v.blob});return 1}catch(e){alert("Envoi du fichier impossible (connexion ?).");return 0}}
-async function fget(k){try{const r=await api("/storage/v1/object/authenticated/fichiers/"+fpath(k));return {blob:await r.blob()}}catch(e){return null}}
+async function fput(k,v){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"POST",headers:{"Content-Type":v.blob.type||"application/octet-stream","x-upsert":"true"},body:v.blob});return 1}catch(e){alert("Envoi du fichier impossible : "+e.message);return 0}}
+async function fget(k){try{const r=await api("/storage/v1/object/authenticated/fichiers/"+fpath(k));return {blob:await r.blob()}}catch(e){return {error:e.message}}}
 async function fdel(k){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"DELETE"})}catch(e){}}
 function login(){hd("Connexion");$("#app").innerHTML=`<form onsubmit="return false"><label>Email</label><input type="text" id="le" autocomplete="username"><label>Mot de passe</label><input type="password" id="lp" autocomplete="current-password"><button class="btn" id="lg">Se connecter</button><p id="lm" style="color:var(--ac)"></p></form>`;
  $("#lg").onclick=async()=>{$("#lm").textContent="";try{await authCall("password",{email:$("#le").value.trim(),password:$("#lp").value});render();sync(true)}catch(e){$("#lm").textContent=e.message=="net"?"Pas de connexion.":"Email ou mot de passe incorrect."}}}
@@ -118,14 +126,105 @@ function chords(txt,t){return (txt||"").split("\n").map(l=>{
  if(p[0])h+=`<span class="sg"><i></i><u>${esc(p[0])}</u></span>`;
  for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<span class="sg"><i data-c="${esc(c)}">${esc(c)}</i><u>${esc(p[i+1])||" "}</u></span>`}
  return `<div class="ln">${h}</div>`}).join("")}
-async function files(s){const el=$("#files");if(!el)return;let h="";
- const m=s.midi&&await fget(s.id+":midi"),a=s.audio&&await fget(s.id+":audio");
- if(a){h+=`<div>🎵 ${esc(s.audio)}<br><audio id="aud" controls style="width:100%" src="${URL.createObjectURL(a.blob)}"></audio><div class="lc" id="audlc"></div></div>`}
- if(m){h+=`<div style="margin:8px 0">🎹 ${esc(s.midi)} — <a id="dm" href="${URL.createObjectURL(m.blob)}" download="${esc(s.midi)}">Ouvrir / enregistrer</a></div>`}
- el.innerHTML=h||'<span style="color:var(--mut)">Aucun fichier MIDI ou audio (à ajouter via ✎)</span>';
- const au=$("#aud");if(audLp){audLp.destroy();audLp=null}
- if(au&&$("#audlc"))audLp=mkLoop($("#audlc"),{t:()=>au.currentTime,seek:x=>{au.currentTime=x},getRate:()=>au.playbackRate||1,setRate:r=>{au.playbackRate=r;au.preservesPitch=true;au.webkitPreservesPitch=true;au.mozPreservesPitch=true}},s.id,"audio")}
 
+/* ===== MIDI : lecture dans l'appli ===== */
+function parseMidi(buf){
+ const u=new Uint8Array(buf),d=new DataView(buf);let p=0;const str=n=>{let s="";for(let i=0;i<n;i++)s+=String.fromCharCode(u[p++]);return s};
+ if(str(4)!="MThd")throw new Error("pas un fichier MIDI");const hl=d.getUint32(p);p+=4;const nt=d.getUint16(p+2);let div=d.getUint16(p+4);p+=hl;if(div&0x8000||!div)div=480;
+ const ev=[];let seq=0;
+ for(let k=0;k<nt&&p<u.length;k++){if(str(4)!="MTrk")break;const len=d.getUint32(p);p+=4;const end=Math.min(u.length,p+len);let tick=0,rs=0;
+  const vlq=()=>{let v=0,b;do{b=u[p++];v=(v<<7)|(b&127)}while((b&128)&&p<end);return v};
+  while(p<end){tick+=vlq();let st=u[p];if(st<0x80){st=rs}else{p++;if(st<0xF0)rs=st}
+   if(st==0xFF){const ty=u[p++],l=vlq();if(ty==0x51&&l==3)ev.push({tick,s:seq++,k:"tempo",us:(u[p]<<16)|(u[p+1]<<8)|u[p+2]});p+=l}
+   else if(st==0xF0||st==0xF7){p+=vlq()}
+   else{const c=st&15,ty=st>>4;
+    if(ty==9||ty==8){const n=u[p++],v=u[p++];ev.push({tick,s:seq++,k:(ty==9&&v>0)?"on":"off",c,n,v})}
+    else if(ty==0xC){ev.push({tick,s:seq++,k:"prog",c,n:u[p++]})}
+    else if(ty==0xB){const cc=u[p++],v=u[p++];ev.push({tick,s:seq++,k:"cc",c,cc,v})}
+    else if(ty==0xD){p++}else p+=2}}
+  p=end}
+ ev.sort((a,b)=>a.tick-b.tick||a.s-b.s);
+ let tm=0,lt=0,tempo=500000;const prog=new Array(16).fill(0),vol=new Array(16).fill(100),ex=new Array(16).fill(127),open={},notes=[];
+ for(const e of ev){tm+=(e.tick-lt)*tempo/(div*1e6);lt=e.tick;
+  if(e.k=="tempo")tempo=e.us||500000;
+  else if(e.k=="prog")prog[e.c]=e.n;
+  else if(e.k=="cc"){if(e.cc==7)vol[e.c]=e.v;else if(e.cc==11)ex[e.c]=e.v}
+  else if(e.k=="on"){const n={t:tm,d:0.5,c:e.c,n:e.n,v:e.v/127,p:prog[e.c],g:(vol[e.c]/127)*(ex[e.c]/127)};notes.push(n);(open[e.c*128+e.n]=open[e.c*128+e.n]||[]).push(n)}
+  else if(e.k=="off"){const a=open[e.c*128+e.n];if(a&&a.length){const n=a.shift();n.d=Math.max(0.03,tm-n.t)}}}
+ const dur=notes.reduce((m,n)=>Math.max(m,n.t+n.d),0);return {notes,dur}}
+const GM=["acoustic_grand_piano","bright_acoustic_piano","electric_grand_piano","honkytonk_piano","electric_piano_1","electric_piano_2","harpsichord","clavinet","celesta","glockenspiel","music_box","vibraphone","marimba","xylophone","tubular_bells","dulcimer","drawbar_organ","percussive_organ","rock_organ","church_organ","reed_organ","accordion","harmonica","tango_accordion","acoustic_guitar_nylon","acoustic_guitar_steel","electric_guitar_jazz","electric_guitar_clean","electric_guitar_muted","overdriven_guitar","distortion_guitar","guitar_harmonics","acoustic_bass","electric_bass_finger","electric_bass_pick","fretless_bass","slap_bass_1","slap_bass_2","synth_bass_1","synth_bass_2","violin","viola","cello","contrabass","tremolo_strings","pizzicato_strings","orchestral_harp","timpani","string_ensemble_1","string_ensemble_2","synth_strings_1","synth_strings_2","choir_aahs","voice_oohs","synth_choir","orchestra_hit","trumpet","trombone","tuba","muted_trumpet","french_horn","brass_section","synth_brass_1","synth_brass_2","soprano_sax","alto_sax","tenor_sax","baritone_sax","oboe","english_horn","bassoon","clarinet","piccolo","flute","recorder","pan_flute","blown_bottle","shakuhachi","whistle","ocarina","lead_1_square","lead_2_sawtooth","lead_3_calliope","lead_4_chiff","lead_5_charang","lead_6_voice","lead_7_fifths","lead_8_bass__lead","pad_1_new_age","pad_2_warm","pad_3_polysynth","pad_4_choir","pad_5_bowed","pad_6_metallic","pad_7_halo","pad_8_sweep","fx_1_rain","fx_2_soundtrack","fx_3_crystal","fx_4_atmosphere","fx_5_brightness","fx_6_goblins","fx_7_echoes","fx_8_scifi","sitar","banjo","shamisen","koto","kalimba","bagpipe","fiddle","shanai","tinkle_bell","agogo","steel_drums","woodblock","taiko_drum","melodic_tom","synth_drum","reverse_cymbal","guitar_fret_noise","breath_noise","seashore","bird_tweet","telephone_ring","helicopter","applause","gunshot"];
+/* [type, attaque, filtre(Hz)|0, percussif(1)/tenu(0), relâchement] par famille GM (programme>>3) */
+const FAM=[["triangle",.003,0,1,.1],["sine",.002,0,1,.1],["square",.01,2200,0,.08],["triangle",.003,0,1,.1],["sawtooth",.005,700,1,.1],["sawtooth",.08,1800,0,.25],["sawtooth",.06,1800,0,.2],["sawtooth",.04,2400,0,.12],["square",.03,1600,0,.1],["sine",.04,0,0,.1],["square",.01,3200,0,.08],["sawtooth",.15,1300,0,.35],["sine",.05,0,0,.2],["triangle",.003,0,1,.1],["sine",.002,0,1,.1],["triangle",.003,0,1,.1]];
+let noiseBuf=null;
+function noise(ctx){if(!noiseBuf||noiseBuf.sampleRate!=ctx.sampleRate){noiseBuf=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate);const a=noiseBuf.getChannelData(0);for(let i=0;i<a.length;i++)a[i]=Math.random()*2-1}return noiseBuf}
+function synthNote(ctx,dest,prog,n,amp,when,dur){
+ const [type,a,fc,perc,rel]=FAM[prog>>3]||FAM[0],f=440*Math.pow(2,(n-69)/12),o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.value=f;
+ const peak=Math.max(0.0002,amp*0.22);g.gain.setValueAtTime(0.0001,when);g.gain.linearRampToValueAtTime(peak,when+a);let stop;
+ if(perc){const dt=Math.max(0.35,Math.min(2.2,dur*1.4+0.2));g.gain.exponentialRampToValueAtTime(0.0008,when+a+dt);stop=when+a+dt+0.05}
+ else{const e=when+Math.max(dur,a+0.02);g.gain.setValueAtTime(peak,e);g.gain.linearRampToValueAtTime(0.0001,e+rel);stop=e+rel+0.03}
+ let out=o;if(fc){const bf=ctx.createBiquadFilter();bf.type="lowpass";bf.frequency.value=Math.min(fc+f,9000);o.connect(bf);out=bf}
+ out.connect(g);g.connect(dest);o.start(when);o.stop(stop)}
+function drumHit(ctx,dest,n,amp,when){
+ const mk=(type,f0,f1,dt,vol)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f0,when);o.frequency.exponentialRampToValueAtTime(f1,when+dt);g.gain.setValueAtTime(amp*vol,when);g.gain.exponentialRampToValueAtTime(0.0008,when+dt);o.connect(g);g.connect(dest);o.start(when);o.stop(when+dt+0.05)};
+ const ns=(ft,fq,dt,vol)=>{const s=ctx.createBufferSource(),f=ctx.createBiquadFilter(),g=ctx.createGain();s.buffer=noise(ctx);f.type=ft;f.frequency.value=fq;g.gain.setValueAtTime(amp*vol,when);g.gain.exponentialRampToValueAtTime(0.0008,when+dt);s.connect(f);f.connect(g);g.connect(dest);s.start(when);s.stop(when+dt+0.05)};
+ if(n==35||n==36)mk("sine",150,45,.22,.9);
+ else if(n==38||n==40||n==37||n==39){ns("bandpass",1900,.16,.55);mk("triangle",200,120,.1,.3)}
+ else if(n==42||n==44)ns("highpass",7000,.05,.28);
+ else if(n==46)ns("highpass",7000,.25,.28);
+ else if([49,51,52,53,55,57,59].includes(n))ns("highpass",5000,.8,.3);
+ else if([41,43,45,47,48,50].includes(n))mk("sine",70+(n-41)*18,45+(n-41)*8,.25,.6);
+ else ns("bandpass",3000,.07,.3)}
+function loadSoundfontLib(){return new Promise((ok,ko)=>{if(window.Soundfont)return ok();const s=document.createElement("script");s.src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js";s.onload=()=>window.Soundfont?ok():ko();s.onerror=ko;document.head.appendChild(s);setTimeout(ko,10000)})}
+function midiPlayer(song,hq){
+ const AC=window.AudioContext||window.webkitAudioContext,N=song.notes;
+ let ctx=null,master=null,gen=null,rate=1,playing=false,t0=0,base=0,pos=0,idx=0,timer=0,inst={},onend=()=>{};
+ const unlock=()=>{if(!ctx){ctx=new AC();master=ctx.createGain();master.gain.value=0.7;const c=ctx.createDynamicsCompressor();master.connect(c);c.connect(ctx.destination)}if(ctx.state=="suspended")ctx.resume()};
+ const cur=()=>playing?Math.min(song.dur,Math.max(base,base+(ctx.currentTime-t0)*rate)):pos;
+ const cut=()=>{if(gen){const g=gen;try{g.gain.setTargetAtTime(0,ctx.currentTime,0.012)}catch(e){}setTimeout(()=>{try{g.disconnect()}catch(e){}},250);gen=null}
+  Object.values(inst).forEach(i=>{try{i.stop()}catch(e){}})};
+ const voice=(n,w)=>{const dur=Math.max(0.05,n.d/rate),amp=Math.min(1,n.v*(0.4+0.6*n.g)*1.1);
+  if(n.c==9)return drumHit(ctx,gen,n.n,amp*0.9,w);
+  if(hq&&inst[n.p])try{return inst[n.p].play(n.n,w,{duration:dur,gain:amp*1.4})}catch(e){}
+  synthNote(ctx,gen,n.p,n.n,amp,w,dur)};
+ const tick=()=>{if(!playing)return;const now=ctx.currentTime,lim=base+(now+0.3-t0)*rate;
+  while(idx<N.length&&N[idx].t<=lim){const n=N[idx++],w=t0+(n.t-base)/rate;if(w<now-0.03)continue;voice(n,Math.max(w,now))}
+  if(cur()>=song.dur+0.2){pause();pos=0;onend()}};
+ const startAt=p=>{unlock();cut();gen=ctx.createGain();gen.connect(master);base=Math.max(0,p);t0=ctx.currentTime+0.06;idx=N.findIndex(n=>n.t>=base);if(idx<0)idx=N.length;playing=true;clearInterval(timer);timer=setInterval(tick,30);tick()};
+ const pause=()=>{if(playing){pos=cur();playing=false}clearInterval(timer);cut()};
+ return {dur:song.dur,unlock,
+  async prepare(msg){if(!hq)return "léger";try{msg("chargement des sons…");await loadSoundfontLib();unlock();
+    const progs=[...new Set(N.filter(n=>n.c!=9).map(n=>n.p))];let bad=0;
+    await Promise.all(progs.map(async p=>{try{inst[p]=await Soundfont.instrument(ctx,GM[p],{soundfont:"FluidR3_GM",format:"mp3",destination:master})}catch(e){bad++}}));
+    return bad?("amélioré (" + bad + " instrument(s) en rendu léger)"):"amélioré"}catch(e){hq=false;return "léger (sons améliorés indisponibles)"}},
+  play(){if(!playing)startAt(pos>=song.dur-0.05?0:pos)},pause,isPlaying:()=>playing,
+  seek(x){x=Math.max(0,Math.min(song.dur,x));pos=x;if(playing)startAt(x)},
+  setRate(r){const p=cur();rate=r;if(playing)startAt(p);else pos=p},rate:()=>rate,t:cur,
+  onEnd(f){onend=f},dispose(){pause();try{ctx&&ctx.close()}catch(e){}}}}
+let midP=null,midLp=null,midUi=0,mediaOpen=(()=>{try{return localStorage.getItem("psr_media")!=="0"}catch(e){return true}})();
+const mmss=x=>{x=Math.max(0,Math.round(x));return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
+async function loadMedia(s){
+ if(audLp){audLp.destroy();audLp=null}if(midLp){midLp.destroy();midLp=null}clearInterval(midUi);if(midP){midP.dispose();midP=null}
+ for(const k of["audio","midi"]){const nm=s[k];if(!nm)continue;const box=$("#mb-"+k);if(!box)return;const f=await fget(s.id+":"+k);if($("#mb-"+k)!==box)return;
+  if(f.error){box.innerHTML=`<span style="color:var(--ac)">⚠ introuvable sur le serveur (${esc(f.error)})</span> <button class="btn sec" data-retry="1" type="button">Réessayer</button>`;box.querySelector("[data-retry]").onclick=()=>{box.innerHTML="Chargement…";loadMedia(s)};continue}
+  const url=URL.createObjectURL(f.blob);
+  if(k=="audio"){box.style.display="block";box.innerHTML=`<audio id="aud" controls style="width:100%" src="${url}"></audio><div class="lc" id="audlc"></div>`;
+   const au=$("#aud");audLp=mkLoop($("#audlc"),{t:()=>au.currentTime,seek:x=>{au.currentTime=x},getRate:()=>au.playbackRate||1,setRate:r=>{au.playbackRate=r;au.preservesPitch=true;au.webkitPreservesPitch=true;au.mozPreservesPitch=true}},s.id,"audio")}
+  else{let song;try{song=parseMidi(await f.blob.arrayBuffer())}catch(e){box.innerHTML=`Lecture impossible (${esc(e.message)}). <a href="${url}" download="${esc(nm)}">⬇ Télécharger</a>`;continue}
+   if(!song.notes.length){box.innerHTML=`Aucune note dans ce fichier. <a href="${url}" download="${esc(nm)}">⬇ Télécharger</a>`;continue}
+   const hq=(()=>{try{return localStorage.getItem("psr_hq")==="1"}catch(e){return false}})();
+   box.style.display="block";box.innerHTML=`<div class="mb"><button class="btn" id="mpl" type="button">▶</button><input type="range" id="mps" min="0" max="${song.dur.toFixed(2)}" step="0.05" value="0"><span id="mpt">0:00 / ${mmss(song.dur)}</span></div><div class="lc" id="midlc"></div><div class="mb"><a href="${url}" download="${esc(nm)}">⬇ Télécharger (pour le clavier)</a><span class="mq" id="mpq">rendu ${hq?"amélioré":"léger"}</span></div>`;
+   midP=midiPlayer(song,hq);const P=midP,pl=$("#mpl"),sl=$("#mps"),tx=$("#mpt");let drag=0,prep=null;
+   const ui=()=>{pl.textContent=P.isPlaying()?"⏸":"▶";if(!drag)sl.value=P.t();tx.textContent=mmss(P.t())+" / "+mmss(P.dur)};
+   P.onEnd(ui);midUi=setInterval(ui,200);
+   pl.onclick=async()=>{if(P.isPlaying()){P.pause();ui();return}P.unlock();if(!prep)prep=P.prepare(m=>{$("#mpq").textContent=m});const q=await prep;$("#mpq").textContent="rendu "+q;P.play();ui()};
+   sl.oninput=()=>{drag=1;P.seek(+sl.value);tx.textContent=mmss(+sl.value)+" / "+mmss(P.dur)};sl.onchange=()=>{drag=0};
+   midLp=mkLoop($("#midlc"),{t:()=>P.t(),seek:x=>P.seek(x),getRate:()=>P.rate(),setRate:r=>P.setRate(r)},s.id,"midi")}}}
+const canon=o=>JSON.stringify(o,(k,v)=>v&&typeof v=="object"&&!Array.isArray(v)?Object.fromEntries(Object.entries(v).sort(([a],[b])=>a<b?-1:1)):v);
+const lastRef={};
+async function refreshSong(id){if(!ses||Date.now()-(lastRef[id]||0)<8000)return;lastRef[id]=Date.now();
+ try{const rows=await (await api("/rest/v1/songs?select=id,data&id=eq."+encodeURIComponent(id))).json();if(!rows.length)return;
+  const fresh={...rows[0].data,id:rows[0].id},i=db.findIndex(x=>x.id==id);if(i<0||Q[id]||canon(db[i])==canon(fresh))return;
+  db[i]=fresh;persist();if(view.n=="show"&&view.id==id&&!asOn){const sc=scrollY;show();scrollTo(0,sc)}}catch(e){}}
 /* ===== Diagrammes d'accords (piano) ===== */
 const FR=["Do","Do#","Ré","Ré#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"],PCN={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
 const pcOf=n=>(PCN[n[0]]+(n[1]=="#"?1:n[1]=="b"?-1:0)+12)%12;
@@ -187,7 +286,7 @@ function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id=
  $("#asp").onclick=()=>asOn?asStop():asStart();
  $("#asm").onclick=()=>{asLv=Math.max(1,asLv-1);jset("psr_speed",asLv);asUi()};$("#asq").onclick=()=>{asLv=Math.min(10,asLv+1);jset("psr_speed",asLv);asUi()};
  $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
-function leaveShow(){asStop();if(audLp){audLp.destroy();audLp=null};const b=$("#asb");if(b)b.remove();curChord=null}
+function leaveShow(){asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
 addEventListener("touchmove",()=>{if(asOn)asStop()},{passive:true});addEventListener("wheel",()=>{if(asOn)asStop()},{passive:true});
 
 /* ===== Lecteur YouTube flottant ===== */
@@ -202,7 +301,7 @@ function mkLoop(box,api,sid,key){
  const rate=api.rates?`<select class="lr" aria-label="Vitesse">${api.rates.map(r=>`<option value="${r}" ${r==api.getRate()?"selected":""}>${r}×</option>`).join("")}</select>`
   :`<input type="range" class="lr" min="0.5" max="1.5" step="0.05" value="${api.getRate()}" aria-label="Vitesse"><span class="lv">${(+api.getRate()).toFixed(2)}×</span>`;
  box.innerHTML=`${rate}<button class="la" type="button">A</button><button class="lb" type="button">B</button><button class="lo" type="button" title="Boucle">🔁</button><button class="lx" type="button" title="Effacer la boucle">✕</button><span class="ls"></span>`;
- const q=s=>box.querySelector(s),ui=()=>{q(".ls").textContent="A "+(a==null?"—":fmt(a))+" · B "+(b==null?"—":fmt(b));q(".lo").classList.toggle("on",on)};
+ const q=s=>box.querySelector(s),ui=()=>{q(".ls").textContent="A "+(a==null?"—":fmt(a))+" · B "+(b==null?"—":fmt(b));q(".lo").classList.toggle("on",on);q(".la").classList.toggle("on",a!=null);q(".lb").classList.toggle("on",b!=null)};
  const run=()=>{clearInterval(iv);if(on&&a!=null&&b!=null&&b>a)iv=setInterval(()=>{try{if(api.t()>=b)api.seek(a)}catch(e){}},60)};
  q(".lr").oninput=q(".lr").onchange=e=>{const v=+e.target.value;api.setRate(v);const lv=q(".lv");if(lv)lv.textContent=v.toFixed(2)+"×"};
  q(".la").onclick=()=>{a=api.t();if(b!=null&&b<=a)b=null;on=a!=null&&b!=null;store();run();ui()};
@@ -232,14 +331,19 @@ function show(){
  hd(s.titre,()=>go({n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
  const F=(l,v)=>v?`<div><span>${l}</span>${esc(v)}</div>`:"",vids=[s.url,s.url2].filter(Boolean);
  $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr">${F("Remarques",s.remarques)}</div>`:""}
- ${vids.length||s.hyperlink?`<div class="sec-t">Liens</div><div style="padding:0 12px">${[...vids,s.hyperlink].filter(Boolean).map(u=>`<div style="margin:4px 0"><a href="${esc(u)}" target="_blank" rel="noopener">${ytid(u)?"▶ ":"🔗 "}${esc(u.slice(0,50))}</a>${ytid(u)?` <button class="btn sec" style="padding:2px 8px" data-yt="${ytid(u)}">Lire (fenêtre)</button>`:""}</div>`).join("")}</div>`:""}
- <div class="sec-t">Fichiers</div><div id="files" style="padding:0 12px"></div></div>
+ ${s.hyperlink?`<div class="sec-t">Lien</div><div style="padding:0 12px"><a href="${esc(s.hyperlink)}" target="_blank" rel="noopener">🔗 ${esc(s.hyperlink.slice(0,60))}</a></div>`:""}</div>
+ <div class="sec-t tg" id="tgm"><span id="tgma">${mediaOpen?"▾":"▸"}</span><b>Médias</b></div><div id="medb" class="${mediaOpen?"":"hide"}" style="padding:0 12px">
+ ${vids.map(u=>ytid(u)?`<div class="mc"><div class="mh">▶ YouTube<small>${esc(u.slice(0,48))}</small></div><div class="mb"><button class="btn sec" type="button" data-yt="${ytid(u)}">Lire (fenêtre)</button><a href="${esc(u)}" target="_blank" rel="noopener">↗ ouvrir dans YouTube</a></div></div>`:`<div class="mc"><div class="mh">🔗 Lien<small><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.slice(0,48))}</a></small></div></div>`).join("")}
+ ${s.audio?`<div class="mc"><div class="mh">🎵 Audio<small>${esc(s.audio)}</small></div><div class="mb" id="mb-audio">Chargement…</div></div>`:""}
+ ${s.midi?`<div class="mc"><div class="mh">🎹 MIDI<small>${esc(s.midi)}</small></div><div class="mb" id="mb-midi">Chargement…</div></div>`:""}
+ ${!vids.length&&!s.audio&&!s.midi?'<div class="mq" style="margin:8px 0">Aucun média (à ajouter via ✎)</div>':""}</div>
  <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button><span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span></div><div class="song">${chords(s.accords,view.t)||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
  document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt,s.id));
  $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
  $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
+ $("#tgm").onclick=()=>{mediaOpen=!mediaOpen;try{localStorage.setItem("psr_media",mediaOpen?"1":"0")}catch(e){}$("#tgma").textContent=mediaOpen?"▾":"▸";$("#medb").classList.toggle("hide",!mediaOpen)};
  asBar();
- files(s);
+ loadMedia(s);refreshSong(s.id);
  const nav=d=>go({n:"show",id:db[(i+d+db.length)%db.length].id,t:0});
  $("#pv").onclick=()=>nav(-1);$("#nx").onclick=()=>nav(1);$("#ed").onclick=()=>go({n:"edit",id:s.id});
  $("#m").onclick=()=>{view.t--;curChord=null;show()};$("#p").onclick=()=>{view.t++;curChord=null;show()}}
@@ -274,7 +378,7 @@ async function doImport(file){
   for(const k in f){const bl=await (await fetch(f[k].data)).blob();await fput(k,{name:f[k].name,blob:bl})}
   await sync(true);alert(a.length+" fiches importées. "+syncMsg)}
  catch(e){alert("Fichier invalide ou import impossible : "+e.message)}}
-async function exportAll(){const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,files:f}))}
+async function exportAll(){const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v&&v.blob)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,files:f}))}
 function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").replace(/"/g,'""')+'"';dl("psr_chansons.csv","text/csv",[k.map(e).join(","),...db.map(s=>k.map(x=>e(s[x])).join(","))].join("\n"))}
 function menu(){
  const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
@@ -284,12 +388,15 @@ function menu(){
  <button class="btn sec" id="m4">Synchroniser maintenant</button>
  <button class="btn sec" id="m1">Exporter tout (JSON, avec fichiers)</button>
  <button class="btn sec" id="m3">Exporter (CSV)</button>
+ <button class="btn sec" id="mhq"></button>
  <button class="btn sec" id="m5">Se déconnecter</button>
  <button class="btn sec" id="mx">Fermer</button></div>`;
  document.body.appendChild(o);const close=()=>o.remove();
  o.onclick=e=>{if(e.target==o)close()};$("#mx").onclick=close;
  $("#mi").onchange=e=>{const f=e.target.files[0];close();if(f)doImport(f)};
- $("#m4").onclick=async()=>{close();await sync(true);alert("Synchronisation : "+syncMsg+" — "+db.length+" fiches.")};
+ $("#m4").onclick=async()=>{close();await sync(true);alert("Synchronisation : "+syncMsg+" — "+db.length+" fiches.");if(view.n=="show")show()};
+ const hqOn=()=>{try{return localStorage.getItem("psr_hq")==="1"}catch(e){return false}},hqLab=()=>{$("#mhq").textContent="Rendu MIDI : "+(hqOn()?"amélioré (sons téléchargés)":"léger")+" — changer"};hqLab();
+ $("#mhq").onclick=()=>{try{localStorage.setItem("psr_hq",hqOn()?"0":"1")}catch(e){}hqLab();if(view.n=="show")alert("Réglage pris en compte à la prochaine ouverture d'une fiche.")};
  $("#m1").onclick=()=>{close();exportAll()};$("#m3").onclick=()=>{close();exportCsv()};$("#m5").onclick=()=>{close();logout()}}
 boot();
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
