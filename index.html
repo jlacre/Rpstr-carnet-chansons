@@ -32,6 +32,18 @@ form{padding:12px;display:flex;flex-direction:column;gap:10px}label{font-size:13
 .stars span{font-size:30px;cursor:pointer;color:var(--line)}.stars span.on{color:#4297c9}
 .tools{display:flex;gap:8px;align-items:center;padding:6px 12px;flex-wrap:wrap}.tools b{min-width:2.5em;text-align:center}
 a{color:var(--chord)}.hide{display:none}
+
+.tg{cursor:pointer;user-select:none;display:flex;align-items:center;gap:6px}.tg b{font-weight:600}
+.sg u{text-decoration:none;white-space:pre;min-height:1.4em}.ci{font-style:normal;font-weight:700;color:var(--chord);padding:0 .3em}.sg i{align-self:flex-start}i[data-c]{cursor:pointer;border-radius:4px}i.sel{background:var(--chord);color:var(--bg)}
+.cp{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--hh,52px));z-index:4;background:var(--card);border-bottom:1px solid var(--line);padding:8px 12px;box-shadow:0 2px 6px #0003}
+.cp .t{display:flex;align-items:center;gap:10px}.cp .t b{font-size:22px;color:var(--chord)}.cp .t span{color:var(--mut);flex:1}.cp .t button{background:none;border:0;font-size:20px;cursor:pointer;color:var(--mut)}
+.cp svg{display:block;width:100%;max-width:440px;margin:6px auto 0}
+.asb{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;gap:8px;justify-content:center;align-items:center;padding:8px 8px calc(8px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line)}
+.asb span{min-width:5.5em;text-align:center;color:var(--mut);font-size:14px}
+#pip{position:fixed;z-index:20;right:8px;bottom:72px;background:#000;border-radius:10px;box-shadow:0 4px 16px #0008;overflow:hidden}
+#pip .ph{display:flex;align-items:center;gap:6px;padding:3px 6px;background:#222;color:#fff;font-size:12px;cursor:grab;touch-action:none;user-select:none}
+#pip .ph span{flex:1}#pip .ph button,#pip .ph a{background:none;border:0;color:#fff;font-size:16px;cursor:pointer;text-decoration:none;padding:2px 6px}
+#pip iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -64,7 +76,7 @@ async function fget(k){try{const r=await api("/storage/v1/object/authenticated/f
 async function fdel(k){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"DELETE"})}catch(e){}}
 function login(){hd("Connexion");$("#app").innerHTML=`<form onsubmit="return false"><label>Email</label><input type="text" id="le" autocomplete="username"><label>Mot de passe</label><input type="password" id="lp" autocomplete="current-password"><button class="btn" id="lg">Se connecter</button><p id="lm" style="color:var(--ac)"></p></form>`;
  $("#lg").onclick=async()=>{$("#lm").textContent="";try{await authCall("password",{email:$("#le").value.trim(),password:$("#lp").value});render();sync(true)}catch(e){$("#lm").textContent=e.message=="net"?"Pas de connexion.":"Email ou mot de passe incorrect."}}}
-function logout(){ses=null;try{localStorage.removeItem(SK)}catch(e){}login()}
+function logout(){const px=$("#pip");if(px)px.remove();ses=null;try{localStorage.removeItem(SK)}catch(e){}login()}
 function boot(){if(!ses){login();return}render();sync();addEventListener("online",()=>sync());document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()})}
 db=load();
 const IDB=new Promise(r=>{try{const q=indexedDB.open("psr_files",1);q.onupgradeneeded=()=>q.result.createObjectStore("f");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
@@ -74,8 +86,8 @@ const ytid=u=>{const m=String(u).match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const cls=s=>"s-"+(s||"").replace(/ /g,"-");
 function go(v){view=v;render();scrollTo(0,0)}
-function render(){view.n=="list"?list():view.n=="show"?show():edit()}
-function hd(t,l,r){$("#hd").innerHTML=(l?`<button class="ib" id="bk">←</button>`:"")+`<h1>${esc(t)}</h1>`+(r||"");if(l)$("#bk").onclick=l}
+function render(){leaveShow();view.n=="list"?list():view.n=="show"?show():edit()}
+function hd(t,l,r){setTimeout(()=>{const h=$("#hd");if(h)document.documentElement.style.setProperty("--hh",h.offsetHeight+"px")},0);$("#hd").innerHTML=(l?`<button class="ib" id="bk">←</button>`:"")+`<h1>${esc(t)}</h1>`+(r||"");if(l)$("#bk").onclick=l}
 function list(){
  hd("PSR Chansons",null,`<button class="ib" id="mn">⋮</button>`);$("#mn").onclick=menu;
  const ql=q.toLowerCase(),a=db.filter(s=>(!flt||s.statut==flt)&&(!ql||[s.titre,s.interprete,s.style,s.remarques,s.clavier].join(" ").toLowerCase().includes(ql)))
@@ -92,27 +104,110 @@ const N=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL={Db:"C#",Eb:"D
 function tr(c,t){if(!t)return c;const f=n=>{n=FL[n]||n;const i=N.indexOf(n);return i<0?n:N[(i+t+120)%12]};
  const m=c.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);return m?f(m[1])+m[2]+(m[3]?"/"+f(m[3]):""):c}
 function chords(txt,t){return (txt||"").split("\n").map(l=>{
- const p=l.split(/\[([^\]]+)\]/);let h="";if(p[0])h+=`<span class="sg"><i></i>${esc(p[0])}</span>`;
- for(let i=1;i<p.length;i+=2)h+=`<span class="sg"><i>${esc(tr(p[i].trim(),t))}</i>${esc(p[i+1])||" "}</span>`;
+ const p=l.split(/\[([^\]]+)\]/);let h="";
+ const only=p.length>1&&p.every((x,i)=>i%2==1||i==0||/^[\s\/|%x\d.\-–]*$/.test(x));
+ if(only){h+=esc(p[0]);for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<i class="ci" data-c="${esc(c)}">${esc(c)}</i>${esc(p[i+1])}`}return `<div class="ln">${h}</div>`}
+ if(p[0])h+=`<span class="sg"><i></i><u>${esc(p[0])}</u></span>`;
+ for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<span class="sg"><i data-c="${esc(c)}">${esc(c)}</i><u>${esc(p[i+1])||" "}</u></span>`}
  return `<div class="ln">${h}</div>`}).join("")}
 async function files(s){const el=$("#files");if(!el)return;let h="";
  const m=s.midi&&await fget(s.id+":midi"),a=s.audio&&await fget(s.id+":audio");
  if(a){h+=`<div>🎵 ${esc(s.audio)}<br><audio controls style="width:100%" src="${URL.createObjectURL(a.blob)}"></audio></div>`}
  if(m){h+=`<div style="margin:8px 0">🎹 ${esc(s.midi)} — <a id="dm" href="${URL.createObjectURL(m.blob)}" download="${esc(s.midi)}">Ouvrir / enregistrer</a></div>`}
  el.innerHTML=h||'<span style="color:var(--mut)">Aucun fichier MIDI ou audio (à ajouter via ✎)</span>'}
+
+/* ===== Diagrammes d'accords (piano) ===== */
+const FR=["Do","Do#","Ré","Ré#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"],PCN={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
+const pcOf=n=>(PCN[n[0]]+(n[1]=="#"?1:n[1]=="b"?-1:0)+12)%12;
+function chordInfo(sym){
+ const m=sym.trim().match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);if(!m)return null;
+ const r=pcOf(m[1]),bass=m[3]?pcOf(m[3]):null;let s=m[2].replace(/[()\s]/g,"").replace("6/9","69");
+ let third=4,fifth=7,sev=null,add=[];
+ if(/^(dim|°|o)/.test(s)){third=3;fifth=6;s=s.replace(/^(dim|°|o)/,"");if(/^7/.test(s)){sev=9;s=s.slice(1)}}
+ else if(/^(aug|\+)/.test(s)){fifth=8;s=s.replace(/^(aug|\+)/,"")}
+ else if(/^(min|m(?!aj)|-)/.test(s)){third=3;s=s.replace(/^(min|m(?!aj)|-)/,"")}
+ let g=0,x;
+ while(s&&g++<30){
+  if(x=s.match(/^(maj|M|Δ)(7|9|11|13)?/)){sev=11;const n=+x[2]||0;if(n>=9)add.push(14);if(n>=11)add.push(17);if(n==13)add.push(21);s=s.slice(x[0].length)}
+  else if(x=s.match(/^sus(2|4)?/)){third=x[1]==2?2:5;s=s.slice(x[0].length)}
+  else if(x=s.match(/^add(2|4|6|9|11|13)/)){add.push({2:14,4:17,6:9,9:14,11:17,13:21}[x[1]]);s=s.slice(x[0].length)}
+  else if(x=s.match(/^69/)){add.push(9,14);s=s.slice(2)}
+  else if(x=s.match(/^(b5|-5)/)){fifth=6;s=s.slice(x[0].length)}
+  else if(x=s.match(/^(#5|\+5)/)){fifth=8;s=s.slice(x[0].length)}
+  else if(x=s.match(/^b9/)){add.push(13);s=s.slice(2)}
+  else if(x=s.match(/^#9/)){add.push(15);s=s.slice(2)}
+  else if(x=s.match(/^#11/)){add.push(18);s=s.slice(3)}
+  else if(x=s.match(/^b13/)){add.push(20);s=s.slice(3)}
+  else if(x=s.match(/^ø/)){third=3;fifth=6;sev=10;s=s.slice(1)}
+  else if(x=s.match(/^(13|11|9|7|6|5)/)){const n=+x[1];
+   if(n==5)third=null;else if(n==6)add.push(9);else{if(sev==null)sev=10;if(n==9)add.push(14);if(n==11)add.push(14,17);if(n==13)add.push(14,21)}s=s.slice(x[0].length)}
+  else s=s.slice(1)}
+ const offs=[...new Set([0,third,fifth,sev,...add].filter(v=>v!=null))].sort((a,b)=>a-b);
+ const oct=bass!=null?3:2,base=bass!=null?12:0,lim=oct*12,pos=[];
+ offs.forEach(o=>{let p=base+r+o;while(p>=lim)p-=12;if(!pos.includes(p))pos.push(p)});pos.sort((a,b)=>a-b);
+ return {r,bass,pos,oct,rootPos:pos.find(p=>p%12==r)??-1,notes:[...new Set(pos.map(p=>p%12))],bpos:bass!=null?bass:-1}}
+function pianoSVG(ci){
+ const W=24,H=84,BW=14,BH=52,wp=[0,2,4,5,7,9,11],bk=[[0,1],[1,3],[3,6],[4,8],[5,10]],sel=new Set(ci.pos);
+ const col=p=>p==ci.bpos&&!sel.has(p)?"#e08a1e":p==ci.rootPos?"#c0392b":sel.has(p)?"#3a8fd0":null;
+ let w="",b="";
+ for(let o=0;o<ci.oct;o++){
+  wp.forEach((q,k)=>{const p=o*12+q,x=(o*7+k)*W,c=col(p);
+   w+=`<rect x="${x}" y="0" width="${W}" height="${H}" rx="2" fill="${c||"#fff"}" stroke="#444"/>`+(c?`<text x="${x+W/2}" y="${H-7}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">${N[p%12]}</text>`:"")});
+  bk.forEach(([k,q])=>{const p=o*12+q,x=(o*7+k+1)*W-BW/2,c=col(p);
+   b+=`<rect x="${x}" y="0" width="${BW}" height="${BH}" rx="2" fill="${c||"#222"}" stroke="#000"/>`+(c?`<text x="${x+BW/2}" y="${BH-6}" text-anchor="middle" font-size="7" font-weight="700" fill="#fff">${N[p%12]}</text>`:"")})}
+ return `<svg viewBox="0 0 ${ci.oct*7*W} ${H}" xmlns="http://www.w3.org/2000/svg">${w}${b}</svg>`}
+let curChord=null;
+function showChord(name){const el=$("#cp");if(!el)return;
+ if(curChord==name){curChord=null;el.classList.add("hide");document.querySelectorAll("i.sel").forEach(i=>i.classList.remove("sel"));return}
+ curChord=name;const ci=chordInfo(name);
+ document.querySelectorAll("i.sel").forEach(i=>i.classList.remove("sel"));document.querySelectorAll("i[data-c]").forEach(i=>{if(i.dataset.c==name)i.classList.add("sel")});
+ el.classList.remove("hide");
+ el.innerHTML=ci&&ci.pos.length?`<div class="t"><b>${esc(name)}</b><span>${(ci.bass!=null&&!ci.pos.some(p=>p%12==ci.bass)?FR[ci.bass]+" (basse) · ":"")+ci.pos.map(p=>FR[p%12]).join(" · ")}</span><button id="cpx" aria-label="Fermer">✕</button></div>${pianoSVG(ci)}<div style="font-size:11px;color:var(--mut);text-align:center">rouge = fondamentale · bleu = notes${ci.bass!=null?" · orange = basse":""}</div>`:`<div class="t"><b>${esc(name)}</b><span>Accord non reconnu</span><button id="cpx">✕</button></div>`;
+ $("#cpx").onclick=()=>showChord(name)}
+
+/* ===== Défilement automatique ===== */
+const ASP=[4,7,10,14,18,23,29,36,45,56];let asOn=0,asLv=Math.min(10,Math.max(1,+(jget("psr_speed")||4))),asRaf=0,asLast=0,asAcc=0,wl=null;
+function asUi(){const b=$("#asp");if(!b)return;b.textContent=asOn?"⏸ Pause":"▶ Défiler";$("#asl").textContent="Vitesse "+asLv}
+function asTick(t){if(!asOn)return;if(asLast){asAcc+=ASP[asLv-1]*(t-asLast)/1000;const d=Math.floor(asAcc);if(d>=1){asAcc-=d;scrollBy(0,d)}}asLast=t;
+ if(innerHeight+scrollY>=document.documentElement.scrollHeight-2){asStop();return}asRaf=requestAnimationFrame(asTick)}
+async function asStart(){asOn=1;asLast=0;asAcc=0;asRaf=requestAnimationFrame(asTick);asUi();try{wl=await navigator.wakeLock.request("screen")}catch(e){}}
+function asStop(){asOn=0;cancelAnimationFrame(asRaf);asUi();try{if(wl){wl.release();wl=null}}catch(e){}}
+function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id="asb";d.className="asb";
+ d.innerHTML=`<button class="btn" id="asp"></button><button class="btn sec" id="asm" aria-label="Plus lent">−</button><span id="asl"></span><button class="btn sec" id="asq" aria-label="Plus rapide">+</button><button class="btn sec" id="ast" aria-label="Haut de page">⤒</button>`;document.body.appendChild(d);
+ $("#asp").onclick=()=>asOn?asStop():asStart();
+ $("#asm").onclick=()=>{asLv=Math.max(1,asLv-1);jset("psr_speed",asLv);asUi()};$("#asq").onclick=()=>{asLv=Math.min(10,asLv+1);jset("psr_speed",asLv);asUi()};
+ $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
+function leaveShow(){asStop();const b=$("#asb");if(b)b.remove();curChord=null}
+addEventListener("touchmove",()=>{if(asOn)asStop()},{passive:true});addEventListener("wheel",()=>{if(asOn)asStop()},{passive:true});
+
+/* ===== Lecteur YouTube flottant ===== */
+const PW=[170,250,340];let pipSz=Math.min(2,Math.max(0,+(jget("psr_pip")??1)));
+function pipFit(){const p=$("#pip");if(p)p.style.width=Math.min(PW[pipSz],innerWidth-16)+"px"}
+function pipOpen(id){let p=$("#pip");if(!p){p=document.createElement("div");p.id="pip";document.body.appendChild(p)}
+ p.innerHTML=`<div class="ph"><span>▶ YouTube</span><button id="pz" aria-label="Taille">⤢</button><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener" aria-label="Ouvrir sur YouTube">↗</a><button id="px" aria-label="Fermer">✕</button></div><iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;pipFit();
+ $("#px").onclick=()=>p.remove();$("#pz").onclick=()=>{pipSz=(pipSz+1)%3;jset("psr_pip",pipSz);pipFit()};
+ const h=p.querySelector(".ph");let dx=0,dy=0,dr=0;
+ h.onpointerdown=e=>{if(e.target.closest("button,a"))return;dr=1;const r=p.getBoundingClientRect();dx=e.clientX-r.left;dy=e.clientY-r.top;h.setPointerCapture(e.pointerId)};
+ h.onpointermove=e=>{if(!dr)return;const r=p.getBoundingClientRect();p.style.left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-dx))+"px";p.style.top=Math.max(0,Math.min(innerHeight-r.height,e.clientY-dy))+"px";p.style.right="auto";p.style.bottom="auto"};
+ h.onpointerup=h.onpointercancel=()=>{dr=0}}
+addEventListener("resize",pipFit);
+let infoOpen=(()=>{try{return localStorage.getItem("psr_info")!=="0"}catch(e){return true}})();
 function show(){
  const i=db.findIndex(s=>s.id==view.id),s=db[i];if(!s)return go({n:"list"});
  hd(s.titre,()=>go({n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
  const F=(l,v)=>v?`<div><span>${l}</span>${esc(v)}</div>`:"",vids=[s.url,s.url2].filter(Boolean);
- $("#app").innerHTML=`<div class="sec-t">Informations</div><div class="grid">${F("Type",s.type)}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr">${F("Remarques",s.remarques)}</div>`:""}
- ${vids.length||s.hyperlink?`<div class="sec-t">Liens</div><div style="padding:0 12px">${[...vids,s.hyperlink].filter(Boolean).map(u=>`<div style="margin:4px 0"><a href="${esc(u)}" target="_blank" rel="noopener">${ytid(u)?"▶ ":"🔗 "}${esc(u.slice(0,50))}</a>${ytid(u)?` <button class="btn sec" style="padding:2px 8px" data-yt="${ytid(u)}">Lire ici</button>`:""}</div>`).join("")}<div id="yt"></div></div>`:""}
- <div class="sec-t">Fichiers</div><div id="files" style="padding:0 12px"></div>
+ $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr">${F("Remarques",s.remarques)}</div>`:""}
+ ${vids.length||s.hyperlink?`<div class="sec-t">Liens</div><div style="padding:0 12px">${[...vids,s.hyperlink].filter(Boolean).map(u=>`<div style="margin:4px 0"><a href="${esc(u)}" target="_blank" rel="noopener">${ytid(u)?"▶ ":"🔗 "}${esc(u.slice(0,50))}</a>${ytid(u)?` <button class="btn sec" style="padding:2px 8px" data-yt="${ytid(u)}">Lire (fenêtre)</button>`:""}</div>`).join("")}</div>`:""}
+ <div class="sec-t">Fichiers</div><div id="files" style="padding:0 12px"></div></div>
  <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button><span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span></div><div class="song">${chords(s.accords,view.t)||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
- document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>{const id=b.dataset.yt,y=$("#yt"),fb=()=>{y.innerHTML=`<p style="color:var(--mut)">La lecture intégrée est bloquée dans cet aperçu. <a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener">Ouvrir sur YouTube</a></p>`},h=e=>{if(/frame/.test(e.violatedDirective)){document.removeEventListener("securitypolicyviolation",h);fb()}};document.addEventListener("securitypolicyviolation",h);y.innerHTML=`<iframe style="width:100%;aspect-ratio:16/9;border:0;margin-top:8px" src="https://www.youtube.com/embed/${id}" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`});
+ document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt));
+ $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
+ $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
+ asBar();
  files(s);
  const nav=d=>go({n:"show",id:db[(i+d+db.length)%db.length].id,t:0});
  $("#pv").onclick=()=>nav(-1);$("#nx").onclick=()=>nav(1);$("#ed").onclick=()=>go({n:"edit",id:s.id});
- $("#m").onclick=()=>{view.t--;show()};$("#p").onclick=()=>{view.t++;show()}}
+ $("#m").onclick=()=>{view.t--;curChord=null;show()};$("#p").onclick=()=>{view.t++;curChord=null;show()}}
 const FD=[["titre","Titre *"],["interprete","Interprète"],["style","Style"],["registration","Registration"],["tempo","Tempo","number"],["voix1","Voix 1"],["voix2","Voix 2"],["date","Date perform.","date"],["url","URL vidéo 1"],["url2","URL vidéo 2"],["hyperlink","Lien"]];
 function edit(){
  const s=view.id?{...db.find(x=>x.id==view.id)}:{id:"n"+Date.now(),type:"Chanson",statut:"A voir",note:0,accords:""};const isNew=!view.id;
