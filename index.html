@@ -44,6 +44,14 @@ a{color:var(--chord)}.hide{display:none}
 #pip .ph{display:flex;align-items:center;gap:6px;padding:3px 6px;background:#222;color:#fff;font-size:12px;cursor:grab;touch-action:none;user-select:none}
 #pip .ph span{flex:1}#pip .ph button,#pip .ph a{background:none;border:0;color:#fff;font-size:16px;cursor:pointer;text-decoration:none;padding:2px 6px}
 #pip iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
+
+.lc{display:flex;flex-wrap:wrap;align-items:center;gap:4px;padding:5px 6px;font-size:12px}
+.lc button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px}
+.lc button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.lc select,.lc input[type=range]{width:auto;padding:2px 4px;font-size:12px;max-width:150px}
+.lc .ls{color:var(--mut);margin-left:auto}.lc .lv{min-width:3em}
+#pip .lc{background:#222;color:#fff}#pip .lc button{background:#444;color:#fff;border-color:#555}#pip .lc button.on{background:#c0392b;border-color:#c0392b}#pip .lc select{background:#444;color:#fff;border-color:#555}#pip .lc .ls{color:#ccc}
+#ytbox{aspect-ratio:16/9;background:#000}#ytbox iframe{display:block;width:100%;height:100%;aspect-ratio:auto;border:0}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -76,7 +84,7 @@ async function fget(k){try{const r=await api("/storage/v1/object/authenticated/f
 async function fdel(k){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"DELETE"})}catch(e){}}
 function login(){hd("Connexion");$("#app").innerHTML=`<form onsubmit="return false"><label>Email</label><input type="text" id="le" autocomplete="username"><label>Mot de passe</label><input type="password" id="lp" autocomplete="current-password"><button class="btn" id="lg">Se connecter</button><p id="lm" style="color:var(--ac)"></p></form>`;
  $("#lg").onclick=async()=>{$("#lm").textContent="";try{await authCall("password",{email:$("#le").value.trim(),password:$("#lp").value});render();sync(true)}catch(e){$("#lm").textContent=e.message=="net"?"Pas de connexion.":"Email ou mot de passe incorrect."}}}
-function logout(){const px=$("#pip");if(px)px.remove();ses=null;try{localStorage.removeItem(SK)}catch(e){}login()}
+function logout(){pipClose();ses=null;try{localStorage.removeItem(SK)}catch(e){}login()}
 function boot(){if(!ses){login();return}render();sync();addEventListener("online",()=>sync());document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()})}
 db=load();
 const IDB=new Promise(r=>{try{const q=indexedDB.open("psr_files",1);q.onupgradeneeded=()=>q.result.createObjectStore("f");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
@@ -112,9 +120,11 @@ function chords(txt,t){return (txt||"").split("\n").map(l=>{
  return `<div class="ln">${h}</div>`}).join("")}
 async function files(s){const el=$("#files");if(!el)return;let h="";
  const m=s.midi&&await fget(s.id+":midi"),a=s.audio&&await fget(s.id+":audio");
- if(a){h+=`<div>🎵 ${esc(s.audio)}<br><audio controls style="width:100%" src="${URL.createObjectURL(a.blob)}"></audio></div>`}
+ if(a){h+=`<div>🎵 ${esc(s.audio)}<br><audio id="aud" controls style="width:100%" src="${URL.createObjectURL(a.blob)}"></audio><div class="lc" id="audlc"></div></div>`}
  if(m){h+=`<div style="margin:8px 0">🎹 ${esc(s.midi)} — <a id="dm" href="${URL.createObjectURL(m.blob)}" download="${esc(s.midi)}">Ouvrir / enregistrer</a></div>`}
- el.innerHTML=h||'<span style="color:var(--mut)">Aucun fichier MIDI ou audio (à ajouter via ✎)</span>'}
+ el.innerHTML=h||'<span style="color:var(--mut)">Aucun fichier MIDI ou audio (à ajouter via ✎)</span>';
+ const au=$("#aud");if(audLp){audLp.destroy();audLp=null}
+ if(au&&$("#audlc"))audLp=mkLoop($("#audlc"),{t:()=>au.currentTime,seek:x=>{au.currentTime=x},getRate:()=>au.playbackRate||1,setRate:r=>{au.playbackRate=r;au.preservesPitch=true;au.webkitPreservesPitch=true;au.mozPreservesPitch=true}},s.id,"audio")}
 
 /* ===== Diagrammes d'accords (piano) ===== */
 const FR=["Do","Do#","Ré","Ré#","Mi","Fa","Fa#","Sol","Sol#","La","La#","Si"],PCN={C:0,D:2,E:4,F:5,G:7,A:9,B:11};
@@ -177,15 +187,40 @@ function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id=
  $("#asp").onclick=()=>asOn?asStop():asStart();
  $("#asm").onclick=()=>{asLv=Math.max(1,asLv-1);jset("psr_speed",asLv);asUi()};$("#asq").onclick=()=>{asLv=Math.min(10,asLv+1);jset("psr_speed",asLv);asUi()};
  $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
-function leaveShow(){asStop();const b=$("#asb");if(b)b.remove();curChord=null}
+function leaveShow(){asStop();if(audLp){audLp.destroy();audLp=null};const b=$("#asb");if(b)b.remove();curChord=null}
 addEventListener("touchmove",()=>{if(asOn)asStop()},{passive:true});addEventListener("wheel",()=>{if(asOn)asStop()},{passive:true});
 
 /* ===== Lecteur YouTube flottant ===== */
 const PW=[170,250,340];let pipSz=Math.min(2,Math.max(0,+(jget("psr_pip")??1)));
 function pipFit(){const p=$("#pip");if(p)p.style.width=Math.min(PW[pipSz],innerWidth-16)+"px"}
-function pipOpen(id){let p=$("#pip");if(!p){p=document.createElement("div");p.id="pip";document.body.appendChild(p)}
- p.innerHTML=`<div class="ph"><span>▶ YouTube</span><button id="pz" aria-label="Taille">⤢</button><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener" aria-label="Ouvrir sur YouTube">↗</a><button id="px" aria-label="Fermer">✕</button></div><iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;pipFit();
- $("#px").onclick=()=>p.remove();$("#pz").onclick=()=>{pipSz=(pipSz+1)%3;jset("psr_pip",pipSz);pipFit()};
+let ytP=null,ytLp=null,audLp=null;
+function fmt(x){x=Math.max(0,x||0);const m=Math.floor(x/60),s=x-m*60;return m+":"+(s<10?"0":"")+s.toFixed(1)}
+/* boucle A-B + vitesse, partagée par la vidéo et l'audio. api: {t,seek,setRate,getRate,rates?} */
+function mkLoop(box,api,sid,key){
+ const song=()=>db.find(x=>x.id==sid),L=(song()?.loops||{})[key]||[null,null];let a=L[0],b=L[1],on=false,iv=0;
+ const store=()=>{const s=song();if(!s)return;s.loops=s.loops||{};if(a==null&&b==null)delete s.loops[key];else s.loops[key]=[a,b];touch(s.id);save()};
+ const rate=api.rates?`<select class="lr" aria-label="Vitesse">${api.rates.map(r=>`<option value="${r}" ${r==api.getRate()?"selected":""}>${r}×</option>`).join("")}</select>`
+  :`<input type="range" class="lr" min="0.5" max="1.5" step="0.05" value="${api.getRate()}" aria-label="Vitesse"><span class="lv">${(+api.getRate()).toFixed(2)}×</span>`;
+ box.innerHTML=`${rate}<button class="la" type="button">A</button><button class="lb" type="button">B</button><button class="lo" type="button" title="Boucle">🔁</button><button class="lx" type="button" title="Effacer la boucle">✕</button><span class="ls"></span>`;
+ const q=s=>box.querySelector(s),ui=()=>{q(".ls").textContent="A "+(a==null?"—":fmt(a))+" · B "+(b==null?"—":fmt(b));q(".lo").classList.toggle("on",on)};
+ const run=()=>{clearInterval(iv);if(on&&a!=null&&b!=null&&b>a)iv=setInterval(()=>{try{if(api.t()>=b)api.seek(a)}catch(e){}},60)};
+ q(".lr").oninput=q(".lr").onchange=e=>{const v=+e.target.value;api.setRate(v);const lv=q(".lv");if(lv)lv.textContent=v.toFixed(2)+"×"};
+ q(".la").onclick=()=>{a=api.t();if(b!=null&&b<=a)b=null;on=a!=null&&b!=null;store();run();ui()};
+ q(".lb").onclick=()=>{const x=api.t();if(a==null)a=0;if(x<=a){a=null;b=x}else b=x;on=a!=null&&b!=null;store();run();ui()};
+ q(".lo").onclick=()=>{if(a==null||b==null||b<=a)return;on=!on;if(on)api.seek(a);run();ui()};
+ q(".lx").onclick=()=>{a=b=null;on=false;store();run();ui()};
+ ui();return {destroy(){clearInterval(iv)}}}
+function ytApi(){return new Promise((ok,ko)=>{if(window.YT&&YT.Player)return ok();const prev=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{try{prev&&prev()}catch(e){}ok()};
+ if(!document.getElementById("ytapi")){const s=document.createElement("script");s.id="ytapi";s.src="https://www.youtube.com/iframe_api";s.onerror=ko;document.head.appendChild(s)}setTimeout(ko,8000)})}
+function pipClose(){if(ytLp){ytLp.destroy();ytLp=null}try{if(ytP)ytP.destroy()}catch(e){}ytP=null;const p=$("#pip");if(p)p.remove()}
+function pipOpen(id,sid){pipClose();const p=document.createElement("div");p.id="pip";document.body.appendChild(p);
+ p.innerHTML=`<div class="ph"><span>▶ YouTube</span><button id="pz" aria-label="Taille">⤢</button><a href="https://www.youtube.com/watch?v=${id}" target="_blank" rel="noopener" aria-label="Ouvrir sur YouTube">↗</a><button id="px" aria-label="Fermer">✕</button></div><div id="ytbox"><div id="ytp"></div></div><div id="ytc" class="lc"></div>`;pipFit();
+ $("#px").onclick=pipClose;$("#pz").onclick=()=>{pipSz=(pipSz+1)%3;jset("psr_pip",pipSz);pipFit()};
+ const fallback=()=>{const bx=$("#ytbox");if(!bx)return;bx.innerHTML=`<iframe src="https://www.youtube.com/embed/${id}?playsinline=1&rel=0" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen></iframe>`;const c=$("#ytc");if(c)c.remove()};
+ ytApi().then(()=>{ytP=new YT.Player("ytp",{videoId:id,width:"100%",height:"100%",playerVars:{playsinline:1,rel:0},events:{
+  onReady:()=>{try{let rs=(ytP.getAvailablePlaybackRates()||[]).filter(r=>r<=1.25);if(!rs.includes(1))rs.push(1);rs.sort((x,y)=>x-y);if(rs.length<2)rs=[0.5,0.75,1];
+   ytLp=mkLoop($("#ytc"),{t:()=>ytP.getCurrentTime(),seek:x=>ytP.seekTo(x,true),setRate:r=>ytP.setPlaybackRate(r),getRate:()=>1,rates:rs},sid,id)}catch(e){fallback()}},
+  onError:()=>{}}})}).catch(fallback);
  const h=p.querySelector(".ph");let dx=0,dy=0,dr=0;
  h.onpointerdown=e=>{if(e.target.closest("button,a"))return;dr=1;const r=p.getBoundingClientRect();dx=e.clientX-r.left;dy=e.clientY-r.top;h.setPointerCapture(e.pointerId)};
  h.onpointermove=e=>{if(!dr)return;const r=p.getBoundingClientRect();p.style.left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-dx))+"px";p.style.top=Math.max(0,Math.min(innerHeight-r.height,e.clientY-dy))+"px";p.style.right="auto";p.style.bottom="auto"};
@@ -200,7 +235,7 @@ function show(){
  ${vids.length||s.hyperlink?`<div class="sec-t">Liens</div><div style="padding:0 12px">${[...vids,s.hyperlink].filter(Boolean).map(u=>`<div style="margin:4px 0"><a href="${esc(u)}" target="_blank" rel="noopener">${ytid(u)?"▶ ":"🔗 "}${esc(u.slice(0,50))}</a>${ytid(u)?` <button class="btn sec" style="padding:2px 8px" data-yt="${ytid(u)}">Lire (fenêtre)</button>`:""}</div>`).join("")}</div>`:""}
  <div class="sec-t">Fichiers</div><div id="files" style="padding:0 12px"></div></div>
  <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button><span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span></div><div class="song">${chords(s.accords,view.t)||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
- document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt));
+ document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt,s.id));
  $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
  $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
  asBar();
