@@ -79,6 +79,9 @@ body.docked{padding-left:260px}body.docked .asb{left:260px}
 .hb{height:6px;background:var(--chord);border-radius:3px;margin-top:4px}
 @keyframes bl{0%,100%{opacity:1;box-shadow:0 0 0 0 #9e201388}50%{opacity:.45;box-shadow:0 0 0 8px #9e201300}}.blink{animation:bl 1s infinite}
 .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;z-index:60;font-size:14px;box-shadow:0 2px 8px #0005}
+.hMD{color:var(--chord);font-weight:700}.hMG{color:var(--ac);font-weight:700}.mu{color:var(--mut)}
+.kbs svg{width:100%;height:auto;display:block;border-radius:8px}.kbc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0}.kbc label{display:flex;align-items:center;gap:4px;margin:0;font-size:14px;color:var(--fg)}.kbc input[type=range]{width:auto;flex:1;min-width:110px;padding:0}.kbi{font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}
+.kbl{display:flex;gap:12px;font-size:13px;color:var(--mut)}.kbl b{margin-right:4px}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -278,12 +281,13 @@ function list(){
 const N=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL={Db:"C#",Eb:"D#",Gb:"F#",Ab:"G#",Bb:"A#"};
 function tr(c,t){if(!t)return c;const f=n=>{n=FL[n]||n;const i=N.indexOf(n);return i<0?n:N[(i+t+120)%12]};
  const m=c.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);return m?f(m[1])+m[2]+(m[3]?"/"+f(m[3]):""):c}
-function chords(txt,t){return (txt||"").split("\n").map(l=>{
+const hl=s=>esc(s).replace(/\b(MD|MG)\b/g,'<b class="h$1">$1</b>').replace(/[·─]/g,'<span class="mu">$&</span>');
+function chords(txt,t,lsn){const E=lsn?hl:esc;return (txt||"").split("\n").map(l=>{
  const p=l.split(/\[([^\]]+)\]/);let h="";
  const only=p.length>1&&p.every((x,i)=>i%2==1||i==0||/^[\s\/|%x\d.\-–]*$/.test(x));
- if(only){h+=esc(p[0]);for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<i class="ci" data-c="${esc(c)}">${esc(c)}</i>${esc(p[i+1])}`}return `<div class="ln">${h}</div>`}
- if(p[0])h+=`<span class="sg"><i></i><u>${esc(p[0])}</u></span>`;
- for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<span class="sg"><i data-c="${esc(c)}">${esc(c)}</i><u>${esc(p[i+1])||" "}</u></span>`}
+ if(only){h+=E(p[0]);for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<i class="ci" data-c="${esc(c)}">${esc(c)}</i>${E(p[i+1])}`}return `<div class="ln">${h}</div>`}
+ if(p[0])h+=`<span class="sg"><i></i><u>${E(p[0])}</u></span>`;
+ for(let i=1;i<p.length;i+=2){const c=tr(p[i].trim(),t);h+=`<span class="sg"><i data-c="${esc(c)}">${esc(c)}</i><u>${E(p[i+1])||" "}</u></span>`}
  return `<div class="ln">${h}</div>`}).join("")}
 
 /* ===== Conversion grille "accords au-dessus" ({Am} ou Am) -> accords [entre crochets] ===== */
@@ -466,7 +470,48 @@ function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id=
  $("#asp").onclick=()=>asOn?asStop():asStart();
  $("#asm").onclick=()=>{asLv=Math.max(1,asLv-1);jset("psr_speed",asLv);asUi()};$("#asq").onclick=()=>{asLv=Math.min(10,asLv+1);jset("psr_speed",asLv);asUi()};
  $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
-function leaveShow(){tmStop();asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
+
+/* ===== Clavier visuel (leçons avec séquence) ===== */
+let kbOpen=(()=>{try{return localStorage.getItem("psr_kb")!=="0"}catch(e){return true}})(),kb=null;
+function kbStop(){if(kb){clearTimeout(kb.tm);try{kb.ctx&&kb.ctx.close()}catch(e){}kb=null}}
+const PCN2=["DO","DO♯","RÉ","MI♭","MI","FA","FA♯","SOL","LA♭","LA","SI♭","SI"];
+function kbName(m,h){const d=m-(h?48:60),o=Math.floor(d/12),pc=((d%12)+12)%12;return PCN2[pc]+(o>0?"↑":o<0?"↓":"")}
+function kbInit(s){kbStop();const Q=s.seq,box=$("#kbs");if(!box)return;
+ $("#tgk").onclick=()=>{kbOpen=!kbOpen;try{localStorage.setItem("psr_kb",kbOpen?"1":"0")}catch(e){}$("#tgka").textContent=kbOpen?"▾":"▸";$("#kbb").classList.toggle("hide",!kbOpen)};
+ const all=Q.e.flatMap(e=>e[3]);const BL=[1,3,6,8,10],blk=m=>BL.includes(((m%12)+12)%12);let lo=Math.min(...all)-1,hi=Math.max(...all)+1;while(blk(lo))lo--;while(blk(hi))hi++;const nw=()=>{let c=0;for(let m=lo;m<=hi;m++)if(!blk(m))c++;return c};for(let k=0;nw()<15;k++){if(k%2){hi++;while(blk(hi))hi++}else{lo--;while(blk(lo))lo--}}
+ const W=30,wh=[];for(let m=lo;m<=hi;m++)if(!BL.includes(m%12))wh.push(m);
+ const xw=m=>wh.indexOf(m)*W;let sv=`<svg viewBox="0 0 ${wh.length*W} 150" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Clavier">`;
+ for(const m of wh){const nm=PCN2[m%12];sv+=`<rect data-k="${m}" x="${xw(m)}" y="0" width="${W-1}" height="125" rx="3" style="fill:#fff;stroke:#999"/><text x="${xw(m)+W/2}" y="119" font-size="9" text-anchor="middle" fill="#666" pointer-events="none">${nm}</text>`;
+  if(m==48||m==60)sv+=`<circle cx="${xw(m)+W/2}" cy="106" r="4" style="fill:${m==48?"var(--ac)":"var(--chord)"}"/>`}
+ for(let m=lo;m<=hi;m++)if(BL.includes(m%12)){const x=xw(m-1)+W-9;sv+=`<rect data-k="${m}" x="${x}" y="0" width="18" height="76" rx="2" style="fill:#222;stroke:#000"/><text data-t="${m}" x="${x+9}" y="68" font-size="8" text-anchor="middle" fill="#fff" pointer-events="none"></text>`}
+ sv+=`<text x="4" y="143" font-size="10" fill="currentColor">● DO MG (${48>=lo&&48<=hi?"":"hors clavier"})</text></svg>`;
+ box.innerHTML=sv.replace(/<text x="4" y="143".*?<\/text>/,"")+`<div class="kbl"><span><b style="color:var(--chord)">■</b>Main droite (MD) · point bleu = DO MD</span><span><b style="color:var(--ac)">■</b>Main gauche (MG) · point rouge = DO MG</span></div>
+ <div class="kbc"><button class="btn sec" id="kbp" type="button" aria-label="Lecture">▶</button><button class="btn sec" id="kbpv" type="button" aria-label="Pas précédent">‹</button><button class="btn sec" id="knx" type="button" aria-label="Pas suivant">›</button><span class="kbi" id="kbi"></span></div>
+ <div class="kbc"><input type="range" id="kbpos" min="0" max="${Q.n-1}" value="0" aria-label="Position"></div>
+ <div class="kbc"><label>Tempo <input type="range" id="kbt" min="30" max="140" value="${Q.bpm}"> <span id="kbv">${Q.bpm}</span></label><label><input type="checkbox" id="kbso" checked>Son</label><label><input type="checkbox" id="kbme">Métronome</label><label><input type="checkbox" id="kblo" checked>Boucle</label></div>
+ <div class="kbi" id="kbtx" style="min-height:2.6em"></div>`;
+ const st={step:0,play:false,tm:0,ctx:null,mas:null};kb=st;const keys={};box.querySelectorAll("rect[data-k]").forEach(r=>keys[r.dataset.k]=r);
+ const MD="var(--chord)",MG="var(--ac)",BOTH="#7a3e9d";
+ const bpm=()=>+$("#kbt").value,sd=()=>60/bpm()*Q.u;
+ function paint(){const on={};Q.e.forEach(([a,l,h,ns])=>{if(st.step>=a&&st.step<a+l)ns.forEach(n=>{on[n]=(on[n]!==undefined&&on[n]!==h)?2:h})});
+  for(const m in keys){const r=keys[m],black=BL.includes(+m%12),c=on[m];r.style.fill=c===undefined?(black?"#222":"#fff"):(c==0?MD:c==1?MG:BOTH);const tx=box.querySelector(`text[data-t="${m}"]`);if(tx)tx.textContent=c===undefined?"":PCN2[+m%12]}
+  const md=[],mg=[];Q.e.forEach(([a,l,h,ns])=>{if(st.step>=a&&st.step<a+l)(h?mg:md).push(ns.map(n=>kbName(n,h)).join("+"))});
+  $("#kbtx").innerHTML=`<b class="hMD">MD</b> ${md.join(" ")||"·"} &nbsp; <b class="hMG">MG</b> ${mg.join(" ")||"·"}`;
+  const bar=Math.floor(st.step/Q.b)+1,beat=Math.floor((st.step%Q.b)*Q.u)+1;$("#kbi").textContent="Mesure "+bar+" · temps "+beat;$("#kbpos").value=st.step;$("#kbp").textContent=st.play?"⏸":"▶"}
+ function ctxOn(){if(!st.ctx){const AC=window.AudioContext||window.webkitAudioContext;st.ctx=new AC();st.mas=st.ctx.createGain();st.mas.gain.value=.7;const c=st.ctx.createDynamicsCompressor();st.mas.connect(c);c.connect(st.ctx.destination)}if(st.ctx.state=="suspended")st.ctx.resume()}
+ function sound(step,click){if(!$("#kbso").checked&&!(click&&$("#kbme").checked))return;try{ctxOn()}catch(e){return}const now=st.ctx.currentTime+.02;
+  if($("#kbso").checked)Q.e.forEach(([a,l,h,ns])=>{if(a==step)ns.forEach(n=>synthNote(st.ctx,st.mas,0,n,.7,now,Math.max(.15,l*sd())))});
+  if(click&&$("#kbme").checked&&Number.isInteger(step*Q.u)){const o=st.ctx.createOscillator(),g=st.ctx.createGain();o.frequency.value=step%Q.b==0?1500:1000;g.gain.setValueAtTime(.25,now);g.gain.exponentialRampToValueAtTime(.001,now+.05);o.connect(g);g.connect(st.mas);o.start(now);o.stop(now+.06)}}
+ function loop(){if(!st.play)return;paint();sound(st.step,true);st.tm=setTimeout(()=>{if(!st.play)return;st.step++;if(st.step>=Q.n){if($("#kblo").checked)st.step=0;else{st.step=0;st.play=false;paint();return}}loop()},sd()*1000)}
+ const stop=()=>{st.play=false;clearTimeout(st.tm);paint()};
+ $("#kbp").onclick=()=>{if(st.play){stop();return}st.play=true;try{ctxOn()}catch(e){}loop()};
+ const mv=d=>{stop();st.step=(st.step+d+Q.n)%Q.n;paint();sound(st.step,false)};
+ $("#kbpv").onclick=()=>mv(-1);$("#knx").onclick=()=>mv(1);
+ $("#kbpos").oninput=e=>{stop();st.step=+e.target.value;paint();sound(st.step,false)};
+ $("#kbt").oninput=()=>{$("#kbv").textContent=bpm()};
+ paint()}
+
+function leaveShow(){tmStop();kbStop();asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
 addEventListener("touchmove",()=>{if(asOn)asStop()},{passive:true});addEventListener("wheel",()=>{if(asOn)asStop()},{passive:true});
 
 /* ===== Lecteur YouTube flottant ===== */
@@ -510,20 +555,21 @@ function show(){
  const i=db.findIndex(s=>s.id==view.id),s=db[i];if(!s)return go({n:"list"});
  hd(s.titre,()=>go(view.sess?{n:"sv",id:view.sess}:{n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
  const F=(l,v)=>v?`<div><span>${l}</span>${esc(v)}</div>`:"",vids=[s.url,s.url2].filter(Boolean);
- $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="tmr"><span id="tmc"></span><button class="btn sec" id="tmp" type="button" aria-label="Pause du chrono">⏸</button><button class="btn sec" id="tme" type="button">✎ Temps</button>${view.sess?`<button class="btn" id="tmd" type="button">✓ Fait</button>`:""}</div><div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Objectif",s.objectif)}${F("Durée prévue",s.duree?s.duree+" min":"")}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr">${F("Remarques",s.remarques)}</div>`:""}
+ $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="tmr"><span id="tmc"></span><button class="btn sec" id="tmp" type="button" aria-label="Pause du chrono">⏸</button><button class="btn sec" id="tme" type="button">✎ Temps</button>${view.sess?`<button class="btn" id="tmd" type="button">✓ Fait</button>`:""}</div><div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Objectif",s.objectif)}${F("Durée prévue",s.duree?s.duree+" min":"")}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr"><div><span>Remarques</span>${isLesson(s)?hl(s.remarques):esc(s.remarques)}</div></div>`:""}
  ${s.hyperlink?`<div class="sec-t">Lien</div><div style="padding:0 12px"><a href="${esc(s.hyperlink)}" target="_blank" rel="noopener">🔗 ${esc(s.hyperlink.slice(0,60))}</a></div>`:""}</div>
+ ${s.seq?`<div class="sec-t tg" id="tgk"><span id="tgka">${kbOpen?"▾":"▸"}</span><b>Clavier</b></div><div id="kbb" class="${kbOpen?"":"hide"}" style="padding:0 12px"><div class="kbs" id="kbs"></div></div>`:""}
  <div class="sec-t tg" id="tgm"><span id="tgma">${mediaOpen?"▾":"▸"}</span><b>Médias</b></div><div id="medb" class="${mediaOpen?"":"hide"}" style="padding:0 12px">
  ${vids.map(u=>ytid(u)?`<div class="mc"><div class="mh">▶ YouTube<small>${esc(u.slice(0,48))}</small></div><div class="mb"><button class="btn sec" type="button" data-yt="${ytid(u)}">Lire (fenêtre)</button><a href="${esc(u)}" target="_blank" rel="noopener">↗ ouvrir dans YouTube</a></div></div>`:`<div class="mc"><div class="mh">🔗 Lien<small><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.slice(0,48))}</a></small></div></div>`).join("")}
  ${s.audio?`<div class="mc"><div class="mh">🎵 Audio<small>${esc(s.audio)}</small></div><div class="mb" id="mb-audio">Chargement…</div></div>`:""}
  ${s.midi?`<div class="mc"><div class="mh">🎹 MIDI<small>${esc(s.midi)}</small></div><div class="mb" id="mb-midi">Chargement…</div></div>`:""}
  ${!vids.length&&!s.audio&&!s.midi?'<div class="mq" style="margin:8px 0">Aucun média (à ajouter via ✎)</div>':""}</div>
- <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button><span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span></div><div class="song">${chords(s.accords,view.t)||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
+ <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button><span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span></div><div class="song">${chords(s.accords,view.t,isLesson(s))||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
  document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt,s.id));
  $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
  $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
  $("#tgm").onclick=()=>{mediaOpen=!mediaOpen;try{localStorage.setItem("psr_media",mediaOpen?"1":"0")}catch(e){}$("#tgma").textContent=mediaOpen?"▾":"▸";$("#medb").classList.toggle("hide",!mediaOpen)};
  asBar();
- tmWire(s);loadMedia(s);refreshSong(s.id);
+ tmWire(s);if(s.seq)kbInit(s);loadMedia(s);refreshSong(s.id);
  const nav=d=>{const S=view.sess&&ext.find(x=>x.id==view.sess),ids=S&&S.items.filter(x=>song(x.sid)).length>1?S.items.map(x=>x.sid).filter(song):db.map(x=>x.id),k=ids.indexOf(s.id);go({n:"show",id:ids[(k+d+ids.length)%ids.length],t:0,sess:view.sess})};
  $("#pv").onclick=()=>nav(-1);$("#nx").onclick=()=>nav(1);$("#ed").onclick=()=>go({n:"edit",id:s.id});
  $("#m").onclick=()=>{view.t--;curChord=null;show()};$("#p").onclick=()=>{view.t++;curChord=null;show()}}
