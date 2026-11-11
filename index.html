@@ -56,7 +56,7 @@ a{color:var(--chord)}.hide{display:none}
 .mc{border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:8px;background:var(--card)}
 .mh{font-weight:600;margin-bottom:6px}.mh small{font-weight:400;color:var(--mut);margin-left:6px;word-break:break-all}
 .mb{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mb input[type=range]{flex:1;min-width:120px;width:auto;padding:0}
-.mq{font-size:12px;color:var(--mut)}#mpl{min-width:44px;font-size:16px}
+.mq{font-size:12px;color:var(--mut)}.mp{display:flex;align-items:center;gap:10px;background:#f1f3f4;border-radius:99px;padding:6px 14px;width:100%;box-sizing:border-box;color:#202124}.mp button{background:none;border:0;padding:4px;cursor:pointer;color:#202124;display:flex}.mp svg{width:22px;height:22px;fill:currentColor}.mp input[type=range]{flex:1;min-width:60px;width:auto;padding:0;accent-color:#202124}.mp span{font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -233,10 +233,10 @@ async function loadMedia(s){
   else{let song;try{song=parseMidi(await f.blob.arrayBuffer())}catch(e){box.innerHTML=`Lecture impossible (${esc(e.message)}). <a href="${url}" download="${esc(nm)}">⬇ Télécharger</a>`;continue}
    if(!song.notes.length){box.innerHTML=`Aucune note dans ce fichier. <a href="${url}" download="${esc(nm)}">⬇ Télécharger</a>`;continue}
    const hq=(()=>{try{return localStorage.getItem("psr_hq")==="1"}catch(e){return false}})();
-   box.style.display="block";box.innerHTML=`<div class="mb"><button class="btn sec" id="mpl" type="button">▶</button><input type="range" id="mps" min="0" max="${song.dur.toFixed(2)}" step="0.05" value="0"><span id="mpt">0:00 / ${mmss(song.dur)}</span></div><div class="lc" id="midlc"></div><div class="mb"><a href="${url}" download="${esc(nm)}">⬇ Télécharger (pour le clavier)</a><span class="mq" id="mpq">rendu ${hq?"amélioré":"léger"}</span></div>`;
+   box.style.display="block";box.innerHTML=`<div class="mp"><button id="mpl" type="button" aria-label="Lecture"></button><span id="mpt">0:00 / ${mmss(song.dur)}</span><input type="range" id="mps" min="0" max="${song.dur.toFixed(2)}" step="0.05" value="0"></div><div class="lc" id="midlc"></div><div class="mb"><a href="${url}" download="${esc(nm)}">⬇ Télécharger (pour le clavier)</a><span class="mq" id="mpq">rendu ${hq?"amélioré":"léger"}</span></div>`;
    midP=midiPlayer(song,hq);const P=midP,pl=$("#mpl"),sl=$("#mps"),tx=$("#mpt");let drag=0,prep=null;
-   const ui=()=>{pl.textContent=P.isPlaying()?"⏸":"▶";pl.classList.toggle("sec",!P.isPlaying());if(!drag)sl.value=P.t();tx.textContent=mmss(P.t())+" / "+mmss(P.dur)};
-   P.onEnd(ui);midUi=setInterval(ui,200);
+   const IP='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',IZ='<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>';const ui=()=>{const pp=P.isPlaying();if(pl.dataset.s!=""+pp){pl.dataset.s=""+pp;pl.innerHTML=pp?IZ:IP}if(!drag)sl.value=P.t();tx.textContent=mmss(P.t())+" / "+mmss(P.dur)};
+   P.onEnd(ui);ui();midUi=setInterval(ui,200);
    pl.onclick=async()=>{if(P.isPlaying()){P.pause();ui();return}P.unlock();if(!prep)prep=P.prepare(m=>{$("#mpq").textContent=m});const q=await prep;$("#mpq").textContent="rendu "+q;P.play();ui()};
    sl.oninput=()=>{drag=1;P.seek(+sl.value);tx.textContent=mmss(+sl.value)+" / "+mmss(P.dur)};sl.onchange=()=>{drag=0};
    midLp=mkLoop($("#midlc"),{t:()=>P.t(),seek:x=>P.seek(x),getRate:()=>P.rate(),setRate:r=>P.setRate(r)},s.id,"midi")}}}
