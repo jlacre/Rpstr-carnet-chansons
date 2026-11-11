@@ -57,12 +57,32 @@ a{color:var(--chord)}.hide{display:none}
 .mh{font-weight:600;margin-bottom:6px}.mh small{font-weight:400;color:var(--mut);margin-left:6px;word-break:break-all}
 .mb{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mb input[type=range]{flex:1;min-width:120px;width:auto;padding:0}
 .mq{font-size:12px;color:var(--mut)}.mp{display:flex;align-items:center;gap:10px;background:#f1f3f4;border-radius:99px;padding:6px 14px;width:100%;box-sizing:border-box;color:#202124}.mp button{background:none;border:0;padding:4px;cursor:pointer;color:#202124;display:flex}.mp svg{width:22px;height:22px;fill:currentColor}.mp input[type=range]{flex:1;min-width:60px;width:auto;padding:0;accent-color:#202124}.mp span{font-size:14px;white-space:nowrap;font-variant-numeric:tabular-nums}
+
+#side{position:fixed;top:0;bottom:0;left:0;width:260px;background:var(--card);border-right:1px solid var(--line);z-index:30;transform:translateX(-100%);transition:transform .2s;display:flex;flex-direction:column;gap:4px;padding:calc(12px + env(safe-area-inset-top,0px)) 8px 12px;overflow:auto}
+body.sideopen #side{transform:none}#scrim{position:fixed;inset:0;background:#0006;z-index:25;display:none}body.sideopen:not(.docked) #scrim{display:block}
+body.docked{padding-left:260px}body.docked .asb{left:260px}
+.sh{display:flex;align-items:center;justify-content:space-between;padding:4px 8px 10px;font-size:17px}.sh button{background:none;border:0;font-size:20px;cursor:pointer;color:var(--mut)}
+.nv{display:flex;gap:10px;align-items:center;padding:12px;border-radius:10px;background:none;border:0;text-align:left;width:100%;cursor:pointer;font-size:16px}.nv.on{background:var(--ac);color:#fff}
+.sdy{margin:8px 4px;padding:10px;border:1px solid var(--line);border-radius:10px;font-size:14px;color:var(--mut)}.sdy b{color:var(--fg);font-size:18px}
+.tmr{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px}.tmr span{flex:1;min-width:150px;font-variant-numeric:tabular-nums}
+.ck{width:30px;height:30px;border-radius:8px;border:2px solid var(--line);background:var(--card);cursor:pointer;font-size:18px;line-height:1;color:#fff;flex:none;margin-right:10px;align-self:center}.ck.on{background:var(--ok);border-color:var(--ok)}
+.pbar{height:6px;background:var(--line);margin:0 12px 6px;border-radius:3px;overflow:hidden}.pbar i{display:block;height:100%;background:var(--ok)}
+.lex{display:flex;flex-direction:column;gap:10px}.lex.hide{display:none}
+.cn{display:flex;align-items:center;justify-content:space-between;padding:8px 12px}
+.cg{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;padding:0 12px}.cg span{text-align:center;color:var(--mut);font-size:12px}
+.cd{position:relative;aspect-ratio:1;border:1px solid var(--line);border-radius:8px;background:var(--card);cursor:pointer;font-size:14px;padding:0}
+.cd.l1{background:color-mix(in srgb,var(--ac) 18%,var(--bg))}.cd.l2{background:color-mix(in srgb,var(--ac) 36%,var(--bg))}.cd.l3{background:color-mix(in srgb,var(--ac) 56%,var(--bg))}.cd.l4{background:color-mix(in srgb,var(--ac) 76%,var(--bg));color:#fff}
+.cd.td{border:2px solid var(--chord)}.cd.sel{outline:2px solid var(--fg)}.cd .dot{position:absolute;bottom:3px;left:50%;width:5px;height:5px;margin-left:-2.5px;border-radius:50%;background:var(--chord)}.cd.nn{visibility:hidden}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 12px}.tile{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px}.tile b{display:block;font-size:20px}.tile span{color:var(--mut);font-size:12px}
+.bars{display:flex;gap:3px;padding:0 12px}.bc{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}.bt{height:90px;width:100%;display:flex;align-items:flex-end}.bb{width:100%;background:var(--ac);border-radius:3px 3px 0 0;min-height:1px}.bc span{font-size:10px;color:var(--mut)}
+.split{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:6px 12px}.split i{display:block;height:100%}
+.hb{height:6px;background:var(--chord);border-radius:3px;margin-top:4px}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
 const SEED=[];
 const KEY="psr_db_v2",STAT=["Connu","En cours","A voir","A compléter"],CLAV=["PSR S970","PSR 330"];
-let db,view={n:"list"},q="",flt="",sortBy="titre";
+let db,view={n:"list"},q="",flt="",tflt="",sortBy="titre";
 function load(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s)}catch(e){}return JSON.parse(JSON.stringify(SEED))}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
 let stT;function save(){persist();clearTimeout(stT);stT=setTimeout(()=>sync(),600)}
@@ -78,23 +98,139 @@ async function api(path,opt={}){const t=await tok();let r;try{r=await fetch(SB+p
 async function sync(manual){if(syncing)return;syncing=1;syncMsg="synchronisation…";if(view.n=="list")list();
  try{for(const id of Object.keys(Q)){const qv=Q[id],act=typeof qv=="string"?qv:qv.a,qt=typeof qv=="string"?0:qv.t;
    if(act=="d")await api("/rest/v1/songs?id=eq."+encodeURIComponent(id),{method:"DELETE"});
-   else{const s=db.find(x=>x.id==id);let newer=false;
+   else{const s=db.find(x=>x.id==id)||ext.find(x=>x.id==id);let newer=false;
     if(s&&qt){const r=await (await api("/rest/v1/songs?select=updated_at&id=eq."+encodeURIComponent(id))).json();newer=r.length&&Date.parse(r[0].updated_at)>qt}
     if(s&&!newer){const {id:_,...data}=s;await api("/rest/v1/songs?on_conflict=id",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({id,data,updated_at:new Date().toISOString()})})}}
    delete Q[id];jset(QK,Q)}
   const rows=await (await api("/rest/v1/songs?select=id,data&limit=5000")).json();
-  db=rows.map(r=>({...r.data,id:r.id}));persist();syncMsg="synchronisé à "+new Date().toTimeString().slice(0,5);
+  const all=rows.map(r=>({...r.data,id:r.id}));db=all.filter(x=>!x._k);ext=all.filter(x=>x._k);persist();persistExt();syncMsg="synchronisé à "+new Date().toTimeString().slice(0,5);
  }catch(e){if(e.message=="auth"){syncing=0;return login()}syncMsg=e.message=="net"?"hors ligne (modifications gardées)":"erreur : "+e.message;if(manual)alert("Synchronisation impossible : "+e.message)}
  finally{syncing=0;if(view.n=="list")list()}}
 const fpath=k=>{const [id,kind]=k.split(":");return ses.uid+"/"+id+"/"+kind};
 async function fput(k,v){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"POST",headers:{"Content-Type":v.blob.type||"application/octet-stream","x-upsert":"true"},body:v.blob});return 1}catch(e){alert("Envoi du fichier impossible : "+e.message);return 0}}
 async function fget(k){try{const r=await api("/storage/v1/object/authenticated/fichiers/"+fpath(k));return {blob:await r.blob()}}catch(e){return {error:e.message}}}
 async function fdel(k){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"DELETE"})}catch(e){}}
-function login(){hd("Connexion");$("#app").innerHTML=`<form onsubmit="return false"><label>Email</label><input type="text" id="le" autocomplete="username"><label>Mot de passe</label><input type="password" id="lp" autocomplete="current-password"><button class="btn" id="lg">Se connecter</button><p id="lm" style="color:var(--ac)"></p></form>`;
+function login(){document.body.classList.remove("sideopen","docked");hd("Connexion");$("#app").innerHTML=`<form onsubmit="return false"><label>Email</label><input type="text" id="le" autocomplete="username"><label>Mot de passe</label><input type="password" id="lp" autocomplete="current-password"><button class="btn" id="lg">Se connecter</button><p id="lm" style="color:var(--ac)"></p></form>`;
  $("#lg").onclick=async()=>{$("#lm").textContent="";try{await authCall("password",{email:$("#le").value.trim(),password:$("#lp").value});render();sync(true)}catch(e){$("#lm").textContent=e.message=="net"?"Pas de connexion.":"Email ou mot de passe incorrect."}}}
 function logout(){pipClose();ses=null;try{localStorage.removeItem(SK)}catch(e){}login()}
 function boot(){if(!ses){login();return}render();sync();addEventListener("online",()=>sync());document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()})}
 db=load();
+
+/* ===== v8 : leçons, sessions, suivi du temps, barre latérale ===== */
+const EK="psr_ext_v1";let ext=jget(EK)||[];
+const persistExt=()=>jset(EK,ext),saveExt=id=>{persistExt();touch(id)},syncSoon=()=>{clearTimeout(stT);stT=setTimeout(()=>sync(),600)};
+const MOIS=["janvier","février","mars","avril","mai","juin","juillet","août","septembre","octobre","novembre","décembre"];
+const ymd=d=>{d=d||new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")};
+const addDays=(s,n)=>{const d=new Date(s+"T12:00:00");d.setDate(d.getDate()+n);return ymd(d)};
+const fdate=s=>new Date(s+"T12:00:00").toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long"});
+const isLesson=s=>!!s&&s.type=="Leçon",ico=s=>isLesson(s)?"🎓":"🎵",song=id=>db.find(x=>x.id==id);
+const logId=(sid,day)=>"log_"+sid+"_"+day;
+const logSec=(sid,day)=>{const l=ext.find(x=>x.id==logId(sid,day));return l?l.sec:0};
+const totalOf=sid=>ext.reduce((a,x)=>a+(x._k=="log"&&x.sid==sid?x.sec:0),0);
+const daySec=day=>ext.reduce((a,x)=>a+(x._k=="log"&&x.day==day?x.sec:0),0);
+function setLog(sid,day,sec,add){let l=ext.find(x=>x.id==logId(sid,day));if(!l){l={id:logId(sid,day),_k:"log",sid,day,sec:0};ext.push(l)}l.sec=Math.max(0,add?l.sec+sec:sec);saveExt(l.id);return l}
+const hm=sec=>{sec=Math.round(sec);const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?h+" h "+String(m).padStart(2,"0"):m?m+" min":(sec>0?"< 1 min":"0 min")};
+const clk=sec=>{sec=Math.floor(sec);return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0")};
+/* chrono automatique : compte tant qu'une fiche est ouverte, écran visible et activité récente (ou média en lecture) */
+let tm={sid:null,on:false,unsaved:0,iv:0,day:""},lastAct=Date.now();
+["pointerdown","keydown","touchstart","scroll","wheel"].forEach(e=>addEventListener(e,()=>{lastAct=Date.now()},{passive:true,capture:true}));
+const busy=()=>asOn||(midP&&midP.isPlaying())||($("#aud")&&!$("#aud").paused)||$("#pip");
+function tmStart(sid){tmStop();tm={sid,on:true,unsaved:0,iv:setInterval(tmTick,1000),day:ymd()};lastAct=Date.now()}
+function tmTick(){if(!tm.sid||!tm.on||document.hidden)return;if(Date.now()-lastAct>600000&&!busy())return;const d=ymd();if(d!=tm.day){tmFlush();tm.day=d}tm.unsaved++;if(tm.unsaved>=15)tmFlush();tmShow()}
+function tmFlush(){if(!tm.sid||!tm.unsaved)return false;setLog(tm.sid,tm.day,tm.unsaved,1);tm.unsaved=0;return true}
+function tmStop(){const had=tm.sid&&tmFlush();clearInterval(tm.iv);tm={sid:null,on:false,unsaved:0,iv:0,day:""};if(had)syncSoon()}
+function tmShow(){const c=$("#tmc");if(!c||!tm.sid)return;c.textContent="⏱ "+clk(logSec(tm.sid,tm.day)+tm.unsaved)+(tm.on?"":" (pause)")+" aujourd'hui · total "+hm(totalOf(tm.sid)+tm.unsaved)}
+function tmWire(s){tmStart(s.id);tmShow();
+ $("#tmp").onclick=()=>{tm.on=!tm.on;$("#tmp").textContent=tm.on?"⏸":"▶";tmShow()};
+ $("#tme").onclick=()=>{const cur=Math.round((logSec(s.id,tm.day)+tm.unsaved)/6)/10,v=prompt("Temps travaillé aujourd'hui sur cette fiche, en minutes :",cur);if(v===null)return;const n=parseFloat(String(v).replace(",","."));if(isNaN(n)||n<0)return;tm.unsaved=0;setLog(s.id,tm.day,Math.round(n*60));syncSoon();tmShow()};
+ const d=$("#tmd");if(d)d.onclick=()=>{const S=ext.find(x=>x.id==view.sess);if(S){S.items.forEach(i=>{if(i.sid==s.id)i.done=true});saveExt(S.id);syncSoon()}go({n:"sv",id:view.sess})}}
+document.addEventListener("visibilitychange",()=>{if(document.hidden&&tmFlush())syncSoon()});
+/* sessions */
+const sessAll=()=>ext.filter(x=>x._k=="sess");
+const newSess=(name,day,items)=>{const S={id:"sess_"+Date.now().toString(36)+Math.random().toString(36).slice(2,5),_k:"sess",name,day,items};ext.push(S);saveExt(S.id);return S};
+const prog=S=>[S.items.filter(i=>i.done).length,S.items.length];
+const sessTime=S=>S.day?S.items.reduce((a,i)=>a+logSec(i.sid,S.day),0):0;
+/* barre latérale */
+const NAV=[["list","🎹","Fiches"],["sess","📋","Sessions"],["cal","📅","Calendrier"],["stats","📊","Statistiques"]],GRP={list:"list",show:"list",edit:"list",sess:"sess",sv:"sess",sed:"sess",cal:"cal",stats:"stats"};
+const wide=()=>matchMedia("(min-width:900px)").matches;
+let sideOpen=wide()&&jget("psr_side")!==0;
+function sideBuild(){if($("#side"))return;const a=document.createElement("aside");a.id="side";document.body.appendChild(a);const s=document.createElement("div");s.id="scrim";s.onclick=()=>{sideOpen=false;sideApply()};document.body.appendChild(s);
+ a.onclick=e=>{const b=e.target.closest("[data-n]");if(!b)return;const n=b.dataset.n;if(n=="__close"){sideToggle();return}if(!wide())sideOpen=false;sideApply();if(n=="__sync"){sync(true);return}if(n=="__menu"){menu();return}go({n})}}
+function sideApply(){sideBuild();const now=ymd(),T=sessAll().filter(x=>x.day==now),[d,n]=T.reduce((p,S)=>{const q=prog(S);return [p[0]+q[0],p[1]+q[1]]},[0,0]);
+ $("#side").innerHTML=`<div class="sh"><b>🎹 PSR Chansons</b><button data-n="__close" type="button" aria-label="Fermer">‹</button></div>`+NAV.map(([k,i,l])=>`<button class="nv ${GRP[view.n]==k?"on":""}" data-n="${k}" type="button">${i} ${l}</button>`).join("")+`<div class="sdy">Aujourd'hui<br><b>${hm(daySec(now))}</b>${n?" · "+d+"/"+n+" fiches":""}</div><div style="flex:1"></div><button class="nv" data-n="__sync" type="button">🔄 Synchroniser</button><button class="nv" data-n="__menu" type="button">⋮ Menu</button>`;
+ document.body.classList.toggle("sideopen",sideOpen);document.body.classList.toggle("docked",sideOpen&&wide())}
+function sideToggle(){sideOpen=!sideOpen;if(wide())jset("psr_side",sideOpen?1:0);sideApply()}
+/* écrans */
+function sessRow(S){const [d,t]=prog(S),m=sessTime(S);return `<div class="row" data-sv="${S.id}"><div><b>${esc(S.name||"Session")}</b><small>${S.day?fdate(S.day):"Modèle"} · ${t} fiche${t>1?"s":""}</small></div><div class="st">${t?d+"/"+t:""}${m?"<br><small>"+hm(m)+"</small>":""}</div></div>`}
+function bindSv(){document.querySelectorAll("[data-sv]").forEach(r=>r.onclick=()=>go({n:"sv",id:r.dataset.sv}))}
+function sessList(){hd("Sessions",null,`<button class="ib" id="sn" aria-label="Nouvelle session">＋</button>`,true);
+ const now=ymd(),all=sessAll(),td=all.filter(x=>x.day==now),mo=all.filter(x=>!x.day),ot=all.filter(x=>x.day&&x.day!=now).sort((a,b)=>b.day.localeCompare(a.day)).slice(0,40);
+ $("#app").innerHTML=`<div class="sec-t">Aujourd'hui · ${fdate(now)}</div>${td.map(sessRow).join("")||`<div style="padding:0 12px"><button class="btn" id="sct" type="button">Créer la session du jour</button></div>`}
+ <div class="sec-t">Modèles</div>${mo.map(sessRow).join("")||'<div class="mq" style="padding:0 12px">Aucun modèle. Depuis une session : « Enregistrer comme modèle ».</div>'}
+ <div class="sec-t">Autres jours</div>${ot.map(sessRow).join("")||'<div class="mq" style="padding:0 12px">Rien pour l’instant.</div>'}`;
+ bindSv();const c=$("#sct");if(c)c.onclick=()=>go({n:"sed",id:null,day:now});$("#sn").onclick=()=>go({n:"sed",id:null,day:now})}
+function sessView(){const S=ext.find(x=>x.id==view.id&&x._k=="sess");if(!S)return go({n:"sess"});
+ hd(S.name||"Session",()=>go({n:"sess"}),`<button class="ib" id="se" aria-label="Modifier">✎</button>`);
+ const [d,t]=prog(S),now=ymd(),dflt=!S.day?now:(S.day>=now?addDays(S.day,1):now);
+ $("#app").innerHTML=`<div style="padding:8px 12px;color:var(--mut)">${S.day?fdate(S.day):"Modèle (non daté)"} · ${d}/${t} faites${S.day&&sessTime(S)?" · ⏱ "+hm(sessTime(S)):""}</div><div class="pbar"><i style="width:${t?Math.round(d/t*100):0}%"></i></div>
+ ${S.items.map((it,k)=>{const x=song(it.sid);return `<div class="row" style="cursor:default"><button class="ck ${it.done?"on":""}" data-ck="${k}" type="button" aria-label="Fait">${it.done?"✓":""}</button><div style="flex:1;cursor:pointer" data-op="${it.sid}"><b>${x?ico(x)+" "+esc(x.titre):"(fiche supprimée)"}</b><small>${x&&x.duree?"prévu "+esc(x.duree)+" min · ":""}${S.day?hm(logSec(it.sid,S.day)):""}</small></div></div>`}).join("")||'<div class="mq" style="padding:12px">Session vide — touchez ✎ pour ajouter des fiches.</div>'}
+ <div class="sec-t">Reproduire</div><div style="padding:0 12px;display:flex;flex-direction:column;gap:8px"><input type="date" id="sd" value="${dflt}"><button class="btn sec" id="sdup" type="button">Dupliquer vers cette date (tout à refaire)</button><button class="btn sec" id="srep" type="button">Reporter à cette date les fiches non faites</button>${S.day?'<button class="btn sec" id="stpl" type="button">Enregistrer comme modèle</button>':""}<button class="btn sec" id="sdel" type="button" style="color:var(--ac)">Supprimer cette session</button></div>`;
+ document.querySelectorAll("[data-ck]").forEach(b=>b.onclick=()=>{const it=S.items[+b.dataset.ck];it.done=!it.done;saveExt(S.id);syncSoon();sessView()});
+ document.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>go({n:"show",id:b.dataset.op,t:0,sess:S.id}));
+ $("#se").onclick=()=>go({n:"sed",id:S.id});const dt=()=>$("#sd").value||dflt;
+ $("#sdup").onclick=()=>{const N=newSess(S.name,dt(),S.items.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
+ $("#srep").onclick=()=>{const r=S.items.filter(i=>!i.done);if(!r.length)return alert("Toutes les fiches sont faites.");const N=newSess(S.name,dt(),r.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
+ const tp=$("#stpl");if(tp)tp.onclick=()=>{const N=newSess(S.name,"",S.items.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
+ $("#sdel").onclick=()=>{if(!confirm("Supprimer cette session ?"))return;ext=ext.filter(x=>x.id!=S.id);persistExt();remove(S.id);syncSoon();go({n:"sess"})}}
+function sessEdit(){const old=view.id&&ext.find(x=>x.id==view.id),isNew=!old;
+ const W=old?{name:old.name,day:old.day,items:old.items.map(i=>({...i}))}:{name:"",day:view.day||"",items:[]};
+ hd(isNew?"Nouvelle session":"Modifier la session",()=>go(isNew?{n:"sess"}:{n:"sv",id:old.id}),`<button class="ib" id="ok" aria-label="Enregistrer">✓</button>`);
+ let pf="",pq="";
+ $("#app").innerHTML=`<form onsubmit="return false"><div><label>Nom</label><input type="text" id="snm" value="${esc(W.name)}" placeholder="ex. Routine du soir"></div><div><label>Date (vide = modèle réutilisable)</label><input type="date" id="sdt" value="${esc(W.day)}"></div><div><label>Fiches de la session</label><div id="sit"></div></div><div><label>Ajouter une fiche</label><input type="search" id="spq" placeholder="Rechercher…"><div class="chips" style="margin:6px 0"><span class="chip on" data-pf="">Tout</span><span class="chip" data-pf="Chanson">🎵 Morceaux</span><span class="chip" data-pf="Leçon">🎓 Leçons</span></div><div id="spk"></div></div></form>`;
+ const items=()=>{$("#sit").innerHTML=W.items.map((it,k)=>{const x=song(it.sid);return `<div class="row" style="cursor:default"><div style="flex:1"><b>${x?ico(x)+" "+esc(x.titre):"(supprimée)"}</b></div><div style="white-space:nowrap"><button class="btn sec" data-u="${k}" type="button">↑</button> <button class="btn sec" data-d="${k}" type="button">↓</button> <button class="btn sec" data-x="${k}" type="button">✕</button></div></div>`}).join("")||'<div class="mq">Aucune fiche pour l’instant.</div>';
+  const mv=(k,j)=>{if(j<0||j>=W.items.length)return;[W.items[k],W.items[j]]=[W.items[j],W.items[k]];items()};
+  document.querySelectorAll("[data-u]").forEach(b=>b.onclick=()=>mv(+b.dataset.u,+b.dataset.u-1));
+  document.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>mv(+b.dataset.d,+b.dataset.d+1));
+  document.querySelectorAll("#sit [data-x]").forEach(b=>b.onclick=()=>{W.items.splice(+b.dataset.x,1);items();pick()})};
+ const pick=()=>{const ql=pq.toLowerCase(),r=db.filter(s=>(!pf||(pf=="Leçon")==isLesson(s))&&(!ql||[s.titre,s.interprete].join(" ").toLowerCase().includes(ql))&&!W.items.some(i=>i.sid==s.id)).sort((a,b)=>(a.titre||"").localeCompare(b.titre||"","fr")).slice(0,40);
+  $("#spk").innerHTML=r.map(s=>`<div class="row" data-add="${s.id}"><div><b>${ico(s)} ${esc(s.titre)}</b><small>${esc(s.interprete)}</small></div><div class="st">＋</div></div>`).join("")||'<div class="mq">Aucun résultat.</div>';
+  document.querySelectorAll("[data-add]").forEach(b=>b.onclick=()=>{W.items.push({sid:b.dataset.add,done:false});items();pick()})};
+ $("#spq").oninput=e=>{pq=e.target.value;pick()};
+ document.querySelectorAll("[data-pf]").forEach(c=>c.onclick=()=>{pf=c.dataset.pf;document.querySelectorAll("[data-pf]").forEach(x=>x.classList.toggle("on",x==c));pick()});
+ items();pick();
+ $("#ok").onclick=()=>{const day=$("#sdt").value,name=$("#snm").value.trim()||(day?"Session du "+fdate(day):"Modèle");
+  if(old){old.name=name;old.day=day;old.items=W.items;saveExt(old.id);syncSoon();go({n:"sv",id:old.id})}else{const N=newSess(name,day,W.items);syncSoon();go({n:"sv",id:N.id})}}}
+let calM=null,calSel=ymd(),statP="7";
+function cal(){hd("Calendrier",null,"",true);const now=ymd();if(!calM){const d=new Date();calM={y:d.getFullYear(),m:d.getMonth()}}
+ const {y,m}=calM,off=(new Date(y,m,1).getDay()+6)%7,nd=new Date(y,m+1,0).getDate(),secs={},sc={};
+ ext.forEach(x=>{if(x._k=="log"&&song(x.sid))secs[x.day]=(secs[x.day]||0)+x.sec;else if(x._k=="sess"&&x.day)sc[x.day]=(sc[x.day]||0)+1});
+ const pre=y+"-"+String(m+1).padStart(2,"0")+"-";let mt=0,ad=0;for(let i=1;i<=nd;i++){const s=secs[pre+String(i).padStart(2,"0")]||0;mt+=s;if(s>0)ad++}
+ const mx=Math.max(1800,...Object.values(secs));let cells="";for(let i=0;i<off;i++)cells+='<button class="cd nn" type="button"></button>';
+ for(let i=1;i<=nd;i++){const d=pre+String(i).padStart(2,"0"),s=secs[d]||0,l=s?Math.min(4,Math.max(1,Math.ceil(s/mx*4))):0;cells+=`<button class="cd l${l} ${d==now?"td":""} ${d==calSel?"sel":""}" data-d="${d}" type="button">${i}${sc[d]?'<i class="dot"></i>':""}</button>`}
+ const ss=sessAll().filter(x=>x.day==calSel),fl=ext.filter(x=>x._k=="log"&&x.day==calSel&&x.sec>0&&song(x.sid)).sort((a,b)=>b.sec-a.sec);
+ $("#app").innerHTML=`<div class="cn"><button class="btn sec" id="cpv" type="button">‹</button><b>${MOIS[m]} ${y}</b><button class="btn sec" id="cnx" type="button">›</button></div><div class="mq" style="text-align:center;margin-bottom:6px">${hm(mt)} · ${ad} jour${ad>1?"s":""} actif${ad>1?"s":""}</div>
+ <div class="cg">${["L","M","M","J","V","S","D"].map(x=>`<span>${x}</span>`).join("")}${cells}</div>
+ <div class="sec-t">${fdate(calSel)}${daySec(calSel)?" · "+hm(daySec(calSel)):""}</div>${ss.map(sessRow).join("")}
+ ${fl.map(x=>{const s=song(x.sid);return `<div class="row" data-op="${x.sid}"><div><b>${ico(s)} ${esc(s.titre)}</b></div><div class="st">${hm(x.sec)}</div></div>`}).join("")||(ss.length?"":'<div class="mq" style="padding:0 12px">Rien ce jour-là.</div>')}
+ <div style="padding:10px 12px"><button class="btn sec" id="cns" type="button">＋ Session ce jour</button></div>`;
+ const mvM=d=>{const t=new Date(y,m+d,1);calM={y:t.getFullYear(),m:t.getMonth()};cal()};$("#cpv").onclick=()=>mvM(-1);$("#cnx").onclick=()=>mvM(1);
+ document.querySelectorAll(".cd[data-d]").forEach(b=>b.onclick=()=>{calSel=b.dataset.d;cal()});bindSv();
+ document.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>go({n:"show",id:b.dataset.op,t:0}));$("#cns").onclick=()=>go({n:"sed",id:null,day:calSel})}
+function stats(){hd("Statistiques",null,"",true);const now=ymd(),cut=statP=="all"?"0000":addDays(now,-(+statP-1)),ALL=ext.filter(x=>x._k=="log"&&x.sec>0&&song(x.sid)),L=ALL.filter(x=>x.day>=cut);
+ const sum=a=>a.reduce((p,x)=>p+x.sec,0),tot=sum(L),days=new Set(L.map(x=>x.day)),per={},last={},byDay={};
+ L.forEach(x=>{per[x.sid]=(per[x.sid]||0)+x.sec});ALL.forEach(x=>{byDay[x.day]=(byDay[x.day]||0)+x.sec;if(!last[x.sid]||x.day>last[x.sid])last[x.sid]=x.day});
+ const les=sum(L.filter(x=>isLesson(song(x.sid)))),sg=tot-les,have=new Set(ALL.map(x=>x.day));let st=0,dd=have.has(now)?now:addDays(now,-1);while(have.has(dd)){st++;dd=addDays(dd,-1)}
+ const nb=statP=="7"?7:30,arr=[];for(let i=nb-1;i>=0;i--){const d=addDays(now,-i);arr.push([d,byDay[d]||0])}const mx=Math.max(1,...arr.map(a=>a[1]));
+ const top=Object.entries(per).sort((a,b)=>b[1]-a[1]).slice(0,10),tmx=top.length?top[0][1]:1;
+ const old=db.filter(s=>s.statut!="Connu"&&!(last[s.id]&&last[s.id]>=addDays(now,-13))).sort((a,b)=>(a.statut=="En cours"?0:1)-(b.statut=="En cours"?0:1)||(last[a.id]||"").localeCompare(last[b.id]||"")).slice(0,8);
+ const SS=sessAll().filter(x=>x.day&&x.day>=cut&&x.day<=now&&x.items.length),SD=SS.filter(x=>x.items.every(i=>i.done)).length;
+ $("#app").innerHTML=`<div class="bar"><div class="chips">${[["7","7 jours"],["30","30 jours"],["all","Tout"]].map(([v,l])=>`<span class="chip ${statP==v?"on":""}" data-p="${v}">${l}</span>`).join("")}</div></div>
+ <div class="tiles"><div class="tile"><b>${hm(tot)}</b><span>Temps travaillé</span></div><div class="tile"><b>${days.size}</b><span>Jours actifs</span></div><div class="tile"><b>${days.size?hm(tot/days.size):"—"}</b><span>Moyenne par jour actif</span></div><div class="tile"><b>${st} j</b><span>Série en cours</span></div><div class="tile"><b>${Object.keys(per).length}</b><span>Fiches travaillées</span></div><div class="tile"><b>${SD} / ${SS.length}</b><span>Sessions terminées</span></div></div>
+ <div class="sec-t">Morceaux / leçons</div><div class="split"><i style="width:${tot?sg/tot*100:50}%;background:var(--ac)"></i><i style="flex:1;background:var(--chord)"></i></div><div class="mq" style="padding:0 12px;display:flex;justify-content:space-between"><span>🎵 Morceaux ${hm(sg)}</span><span>🎓 Leçons ${hm(les)}</span></div>
+ <div class="sec-t">Par jour</div><div class="bars">${arr.map(([d,s])=>`<div class="bc"><div class="bt"><div class="bb" style="height:${Math.round(s/mx*100)}%"></div></div><span>${nb<=7?"LMMJVSD"[(new Date(d+"T12:00:00").getDay()+6)%7]:d.slice(8)}</span></div>`).join("")}</div>
+ <div class="sec-t">Les plus travaillées</div>${top.map(([id,s])=>{const x=song(id);return `<div class="row" data-op="${id}" style="display:block"><div style="display:flex;justify-content:space-between"><b>${ico(x)} ${esc(x.titre)}</b><span>${hm(s)}</span></div><div class="hb" style="width:${Math.round(s/tmx*100)}%"></div></div>`}).join("")||'<div class="mq" style="padding:0 12px">Pas encore de temps enregistré : ouvrez une fiche, le chrono démarre tout seul.</div>'}
+ <div class="sec-t">À retravailler (hors « Connu », rien depuis 14 jours)</div>${old.map(s=>`<div class="row" data-op="${s.id}"><div><b>${ico(s)} ${esc(s.titre)}</b><small>${last[s.id]?"dernière fois : "+fdate(last[s.id]):"jamais travaillée"}</small></div><div class="st"><span class="${cls(s.statut)}">${esc(s.statut)}</span></div></div>`).join("")||'<div class="mq" style="padding:0 12px">Rien à signaler.</div>'}`;
+ document.querySelectorAll("[data-p]").forEach(c=>c.onclick=()=>{statP=c.dataset.p;stats()});document.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>go({n:"show",id:b.dataset.op,t:0}))}
 const IDB=new Promise(r=>{try{const q=indexedDB.open("psr_files",1);q.onupgradeneeded=()=>q.result.createObjectStore("f");q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)}catch(e){r(null)}});
 async function fx(mode,fn){const d=await IDB;if(!d)return null;return new Promise(r=>{try{const s=d.transaction("f",mode).objectStore("f"),q=fn(s);q.onsuccess=()=>r(q.result??null);q.onerror=()=>r(null)}catch(e){r(null)}})}
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.readAsDataURL(b)});
@@ -102,20 +238,20 @@ const ytid=u=>{const m=String(u).match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const cls=s=>"s-"+(s||"").replace(/ /g,"-");
 function go(v){view=v;render();scrollTo(0,0)}
-function render(){leaveShow();view.n=="list"?list():view.n=="show"?show():edit()}
-function hd(t,l,r){setTimeout(()=>{const h=$("#hd");if(h)document.documentElement.style.setProperty("--hh",h.offsetHeight+"px")},0);$("#hd").innerHTML=(l?`<button class="ib" id="bk">←</button>`:"")+`<h1>${esc(t)}</h1>`+(r||"");if(l)$("#bk").onclick=l}
+function render(){leaveShow();sideApply();({list,show,edit,sess:sessList,sv:sessView,sed:sessEdit,cal,stats}[view.n]||list)()}
+function hd(t,l,r,side){setTimeout(()=>{const h=$("#hd");if(h)document.documentElement.style.setProperty("--hh",h.offsetHeight+"px")},0);$("#hd").innerHTML=(l?`<button class="ib" id="bk">←</button>`:side?`<button class="ib" id="sbt" aria-label="Menu latéral">☰</button>`:"")+`<h1>${esc(t)}</h1>`+(r||"");if(l)$("#bk").onclick=l;if(side&&!l)$("#sbt").onclick=sideToggle}
 function list(){
- hd("PSR Chansons",null,`<button class="ib" id="mn">⋮</button>`);$("#mn").onclick=menu;
- const ql=q.toLowerCase(),a=db.filter(s=>(!flt||s.statut==flt)&&(!ql||[s.titre,s.interprete,s.style,s.remarques,s.clavier].join(" ").toLowerCase().includes(ql)))
+ hd("Fiches",null,`<button class="ib" id="mn">⋮</button>`,true);$("#mn").onclick=menu;
+ const tt={};ext.forEach(x=>{if(x._k=="log")tt[x.sid]=(tt[x.sid]||0)+x.sec});const ql=q.toLowerCase(),a=db.filter(s=>(!flt||s.statut==flt)&&(!tflt||(tflt=="Leçon")==isLesson(s))&&(!ql||[s.titre,s.interprete,s.style,s.remarques,s.clavier].join(" ").toLowerCase().includes(ql)))
   .sort((x,y)=>sortBy=="note"?(y.note||0)-(x.note||0):(x[sortBy]||"").localeCompare(y[sortBy]||"","fr"));
- $("#app").innerHTML=`<div class="bar"><input type="search" id="q" placeholder="Rechercher…" value="${esc(q)}"><div class="chips">${["",...STAT].map(s=>`<span class="chip ${flt==s?"on":""}" data-s="${s}">${s||"Tous"}</span>`).join("")}<select id="so" style="width:auto"><option value="titre">Tri : titre</option><option value="interprete">Tri : interprète</option><option value="statut">Tri : statut</option><option value="note">Tri : note</option></select></div></div>`+
- a.map(s=>`<div class="row" data-id="${s.id}"><div><b>${esc(s.titre)}</b><small>${esc(s.interprete)}</small></div><div class="st"><span class="${cls(s.statut)}">${esc(s.statut)}</span><br><small>${esc(s.clavier)}</small></div></div>`).join("")+
+ $("#app").innerHTML=`<div class="bar"><input type="search" id="q" placeholder="Rechercher…" value="${esc(q)}"><div class="chips">${[["","Tout"],["Chanson","🎵 Morceaux"],["Leçon","🎓 Leçons"]].map(([v,l])=>`<span class="chip ${tflt==v?"on":""}" data-t="${v}">${l}</span>`).join("")}</div><div class="chips">${["",...STAT].map(s=>`<span class="chip ${flt==s?"on":""}" data-s="${s}">${s||"Tous"}</span>`).join("")}<select id="so" style="width:auto"><option value="titre">Tri : titre</option><option value="interprete">Tri : interprète</option><option value="statut">Tri : statut</option><option value="note">Tri : note</option></select></div></div>`+
+ a.map(s=>`<div class="row" data-id="${s.id}"><div><b>${ico(s)} ${esc(s.titre)}</b><small>${esc(s.interprete)}${tt[s.id]?" · ⏱ "+hm(tt[s.id]):""}</small></div><div class="st"><span class="${cls(s.statut)}">${esc(s.statut)}</span><br><small>${esc(s.clavier)}</small></div></div>`).join("")+
  `<div class="count">Enregistrements : ${a.length} / ${db.length} · ${syncMsg}</div><button class="fab" id="add">+</button>`;
  const qi=$("#q");qi.oninput=e=>{q=e.target.value;const p=e.target.selectionStart;list();const n=$("#q");n.focus();n.setSelectionRange(p,p)};
  $("#so").value=sortBy;$("#so").onchange=e=>{sortBy=e.target.value;list()};
- document.querySelectorAll(".chip").forEach(c=>c.onclick=()=>{flt=c.dataset.s;list()});
+ document.querySelectorAll(".chip[data-s]").forEach(c=>c.onclick=()=>{flt=c.dataset.s;list()});document.querySelectorAll(".chip[data-t]").forEach(c=>c.onclick=()=>{tflt=c.dataset.t;list()});
  document.querySelectorAll(".row").forEach(r=>r.onclick=()=>go({n:"show",id:r.dataset.id,t:0}));
- $("#add").onclick=()=>go({n:"edit",id:null})}
+ $("#add").onclick=()=>go({n:"edit",id:null,type:tflt||"Chanson"})}
 const N=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL={Db:"C#",Eb:"D#",Gb:"F#",Ab:"G#",Bb:"A#"};
 function tr(c,t){if(!t)return c;const f=n=>{n=FL[n]||n;const i=N.indexOf(n);return i<0?n:N[(i+t+120)%12]};
  const m=c.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);return m?f(m[1])+m[2]+(m[3]?"/"+f(m[3]):""):c}
@@ -349,9 +485,9 @@ addEventListener("resize",pipFit);
 let infoOpen=(()=>{try{return localStorage.getItem("psr_info")!=="0"}catch(e){return true}})();
 function show(){
  const i=db.findIndex(s=>s.id==view.id),s=db[i];if(!s)return go({n:"list"});
- hd(s.titre,()=>go({n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
+ hd(s.titre,()=>go(view.sess?{n:"sv",id:view.sess}:{n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
  const F=(l,v)=>v?`<div><span>${l}</span>${esc(v)}</div>`:"",vids=[s.url,s.url2].filter(Boolean);
- $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr">${F("Remarques",s.remarques)}</div>`:""}
+ $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="tmr"><span id="tmc"></span><button class="btn sec" id="tmp" type="button" aria-label="Pause du chrono">⏸</button><button class="btn sec" id="tme" type="button">✎ Temps</button>${view.sess?`<button class="btn" id="tmd" type="button">✓ Fait</button>`:""}</div><div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Objectif",s.objectif)}${F("Durée prévue",s.duree?s.duree+" min":"")}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr">${F("Remarques",s.remarques)}</div>`:""}
  ${s.hyperlink?`<div class="sec-t">Lien</div><div style="padding:0 12px"><a href="${esc(s.hyperlink)}" target="_blank" rel="noopener">🔗 ${esc(s.hyperlink.slice(0,60))}</a></div>`:""}</div>
  <div class="sec-t tg" id="tgm"><span id="tgma">${mediaOpen?"▾":"▸"}</span><b>Médias</b></div><div id="medb" class="${mediaOpen?"":"hide"}" style="padding:0 12px">
  ${vids.map(u=>ytid(u)?`<div class="mc"><div class="mh">▶ YouTube<small>${esc(u.slice(0,48))}</small></div><div class="mb"><button class="btn sec" type="button" data-yt="${ytid(u)}">Lire (fenêtre)</button><a href="${esc(u)}" target="_blank" rel="noopener">↗ ouvrir dans YouTube</a></div></div>`:`<div class="mc"><div class="mh">🔗 Lien<small><a href="${esc(u)}" target="_blank" rel="noopener">${esc(u.slice(0,48))}</a></small></div></div>`).join("")}
@@ -364,16 +500,16 @@ function show(){
  $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
  $("#tgm").onclick=()=>{mediaOpen=!mediaOpen;try{localStorage.setItem("psr_media",mediaOpen?"1":"0")}catch(e){}$("#tgma").textContent=mediaOpen?"▾":"▸";$("#medb").classList.toggle("hide",!mediaOpen)};
  asBar();
- loadMedia(s);refreshSong(s.id);
- const nav=d=>go({n:"show",id:db[(i+d+db.length)%db.length].id,t:0});
+ tmWire(s);loadMedia(s);refreshSong(s.id);
+ const nav=d=>{const S=view.sess&&ext.find(x=>x.id==view.sess),ids=S&&S.items.filter(x=>song(x.sid)).length>1?S.items.map(x=>x.sid).filter(song):db.map(x=>x.id),k=ids.indexOf(s.id);go({n:"show",id:ids[(k+d+ids.length)%ids.length],t:0,sess:view.sess})};
  $("#pv").onclick=()=>nav(-1);$("#nx").onclick=()=>nav(1);$("#ed").onclick=()=>go({n:"edit",id:s.id});
  $("#m").onclick=()=>{view.t--;curChord=null;show()};$("#p").onclick=()=>{view.t++;curChord=null;show()}}
 const FD=[["titre","Titre *"],["interprete","Interprète"],["style","Style"],["registration","Registration"],["tempo","Tempo","number"],["voix1","Voix 1"],["voix2","Voix 2"],["date","Date perform.","date"],["url","URL vidéo 1"],["url2","URL vidéo 2"],["hyperlink","Lien"]];
 function edit(){
- const s=view.id?{...db.find(x=>x.id==view.id)}:{id:"n"+Date.now(),type:"Chanson",statut:"A voir",note:0,accords:""};const isNew=!view.id;
+ const s=view.id?{...db.find(x=>x.id==view.id)}:{id:"n"+Date.now(),type:view.type||"Chanson",statut:"A voir",note:0,accords:""};const isNew=!view.id;
  hd(isNew?"Nouvelle chanson":"Modifier",()=>go(isNew?{n:"list"}:{n:"show",id:s.id,t:0}),`<button class="ib" id="ok">✓</button>`);
  const cl=[...new Set([...CLAV,...db.map(x=>x.clavier).filter(Boolean)])];
- $("#app").innerHTML=`<form onsubmit="return false">${FD.slice(0,2).map(f=>fld(f,s)).join("")}<div><label>Statut</label><select id="f_statut">${STAT.map(x=>`<option ${s.statut==x?"selected":""}>${x}</option>`).join("")}</select></div>
+ $("#app").innerHTML=`<form onsubmit="return false">${FD.slice(0,2).map(f=>fld(f,s)).join("")}<div><label>Type</label><select id="f_type"><option value="Chanson" ${isLesson(s)?"":"selected"}>🎵 Morceau</option><option value="Leçon" ${isLesson(s)?"selected":""}>🎓 Leçon</option></select></div><div id="lex" class="lex ${isLesson(s)?"":"hide"}"><div><label>Objectif de la leçon</label><input type="text" id="f_objectif" value="${esc(s.objectif)}"></div><div><label>Durée prévue (minutes)</label><input type="number" id="f_duree" value="${esc(s.duree)}"></div></div><div><label>Statut</label><select id="f_statut">${STAT.map(x=>`<option ${s.statut==x?"selected":""}>${x}</option>`).join("")}</select></div>
  ${FD.slice(2).map(f=>fld(f,s)).join("")}<div><label>Clavier</label><input type="text" id="f_clavier" list="cl" value="${esc(s.clavier)}"><datalist id="cl">${cl.map(c=>`<option>${esc(c)}</option>`).join("")}</datalist></div>
  <div><label>Note</label><div class="stars" id="st">${[1,2,3,4,5].map(n=>`<span data-n="${n}" class="${n<=s.note?"on":""}">★</span>`).join("")}</div></div>
  <div><label>Fichier MIDI</label><div id="fm"></div><input type="file" id="im" accept=".mid,.midi,audio/midi,audio/x-midi"></div>
@@ -386,10 +522,11 @@ function edit(){
  $("#im").onchange=e=>{pm=e.target.files[0];lab()};$("#ia").onchange=e=>{pa=e.target.files[0];lab()};
  $("#rec").onclick=async()=>{try{if(rc){rc.stop();return}const st=await navigator.mediaDevices.getUserMedia({audio:true}),ch=[];rc=new MediaRecorder(st);rc.ondataavailable=e=>ch.push(e.data);
   rc.onstop=()=>{st.getTracks().forEach(x=>x.stop());pa=new File(ch,"enregistrement-"+new Date().toISOString().slice(0,16).replace(/[:T]/g,"-")+".webm",{type:rc.mimeType});rc=null;$("#rec").textContent="● Enregistrer";lab()};rc.start();$("#rec").textContent="■ Arrêter"}catch(e){alert("Micro indisponible ici.")}};document.querySelectorAll("#st span").forEach(e=>e.onclick=()=>{note=note==+e.dataset.n?0:+e.dataset.n;document.querySelectorAll("#st span").forEach(x=>x.classList.toggle("on",+x.dataset.n<=note))});
- $("#ok").onclick=async()=>{const o={...s,note};cvt();[...FD.map(f=>f[0]),"statut","clavier","remarques","accords"].forEach(k=>o[k]=$("#f_"+k).value);
+ $("#ok").onclick=async()=>{const o={...s,note};cvt();[...FD.map(f=>f[0]),"statut","clavier","remarques","accords","type","objectif","duree"].forEach(k=>o[k]=$("#f_"+k).value);
   if(!o.titre.trim())return alert("Le titre est obligatoire.");for(const [k,p] of [["midi",pm],["audio",pa]]){if(p=="del"){await fdel(o.id+":"+k);o[k]=""}else if(p){if(await fput(o.id+":"+k,{name:p.name,blob:p}))o[k]=p.name}}
   if(isNew)db.push(o);else db[db.findIndex(x=>x.id==s.id)]=o;touch(o.id);save();go({n:"show",id:o.id,t:0})};
  const cvt=()=>{const ta=$("#f_accords");if(hasGrille(ta.value))ta.value=grille2cp(ta.value)};
+ $("#f_type").onchange=e=>$("#lex").classList.toggle("hide",e.target.value!="Leçon");
  $("#cvg").onclick=()=>{const ta=$("#f_accords");ta.value=grille2cp(ta.value)};
  $("#f_accords").addEventListener("paste",()=>setTimeout(cvt,0));
  const xm=$("#xm"),xa=$("#xa");if(xm)xm.onclick=()=>{pm="del";lab()};if(xa)xa.onclick=()=>{pa="del";lab()};
@@ -397,12 +534,12 @@ function edit(){
 function fld([k,l,t],s){return `<div><label>${l}</label><input type="${t||"text"}" id="f_${k}" value="${esc(s[k])}"></div>`}
 async function dl(name,type,data){try{const d=await claude.use("downloads");if(d){await d.save({filename:name,data});return}}catch(e){if(e&&e.code=="declined")return}const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type}));a.download=name;a.click()}
 async function doImport(file){
- try{let a=JSON.parse(await file.text()),f={};if(!Array.isArray(a)){f=a.files||{};a=a.songs}if(!Array.isArray(a))throw new Error("format");
-  a.forEach(x=>{const j=db.findIndex(y=>y.id==x.id);if(j<0)db.push(x);else db[j]=x;touch(x.id)});persist();
+ try{let a=JSON.parse(await file.text()),f={},xs=[];if(!Array.isArray(a)){f=a.files||{};xs=a.sessions||[];a=a.songs}if(!Array.isArray(a))throw new Error("format");
+  a.forEach(x=>{const j=db.findIndex(y=>y.id==x.id);if(j<0)db.push(x);else db[j]=x;touch(x.id)});persist();xs.forEach(x=>{const j=ext.findIndex(y=>y.id==x.id);if(j<0)ext.push(x);else ext[j]=x;touch(x.id)});persistExt();
   for(const k in f){const bl=await (await fetch(f[k].data)).blob();await fput(k,{name:f[k].name,blob:bl})}
   await sync(true);alert(a.length+" fiches importées. "+syncMsg)}
  catch(e){alert("Fichier invalide ou import impossible : "+e.message)}}
-async function exportAll(){const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v&&v.blob)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,files:f}))}
+async function exportAll(){const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v&&v.blob)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,sessions:ext,files:f}))}
 function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").replace(/"/g,'""')+'"';dl("psr_chansons.csv","text/csv",[k.map(e).join(","),...db.map(s=>k.map(x=>e(s[x])).join(","))].join("\n"))}
 function menu(){
  const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
