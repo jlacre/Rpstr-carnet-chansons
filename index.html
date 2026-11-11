@@ -77,6 +77,8 @@ body.docked{padding-left:260px}body.docked .asb{left:260px}
 .bars{display:flex;gap:3px;padding:0 12px}.bc{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}.bt{height:90px;width:100%;display:flex;align-items:flex-end}.bb{width:100%;background:var(--ac);border-radius:3px 3px 0 0;min-height:1px}.bc span{font-size:10px;color:var(--mut)}
 .split{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:6px 12px}.split i{display:block;height:100%}
 .hb{height:6px;background:var(--chord);border-radius:3px;margin-top:4px}
+@keyframes bl{0%,100%{opacity:1;box-shadow:0 0 0 0 #9e201388}50%{opacity:.45;box-shadow:0 0 0 8px #9e201300}}.blink{animation:bl 1s infinite}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;z-index:60;font-size:14px;box-shadow:0 2px 8px #0005}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -132,17 +134,29 @@ function setLog(sid,day,sec,add){let l=ext.find(x=>x.id==logId(sid,day));if(!l){
 const hm=sec=>{sec=Math.round(sec);const h=Math.floor(sec/3600),m=Math.floor(sec%3600/60);return h?h+" h "+String(m).padStart(2,"0"):m?m+" min":(sec>0?"< 1 min":"0 min")};
 const clk=sec=>{sec=Math.floor(sec);return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0")};
 /* chrono automatique : compte tant qu'une fiche est ouverte, écran visible et activité récente (ou média en lecture) */
-let tm={sid:null,on:false,unsaved:0,iv:0,day:""},lastAct=Date.now();
+const AUTO_ADD_S=20;let tm={sid:null,on:false,started:false,cnt:0,unsaved:0,iv:0,day:""},lastAct=Date.now();
 ["pointerdown","keydown","touchstart","scroll","wheel"].forEach(e=>addEventListener(e,()=>{lastAct=Date.now()},{passive:true,capture:true}));
 const busy=()=>asOn||(midP&&midP.isPlaying())||($("#aud")&&!$("#aud").paused)||$("#pip");
-function tmStart(sid){tmStop();tm={sid,on:true,unsaved:0,iv:setInterval(tmTick,1000),day:ymd()};lastAct=Date.now()}
-function tmTick(){if(!tm.sid||!tm.on||document.hidden)return;if(Date.now()-lastAct>600000&&!busy())return;const d=ymd();if(d!=tm.day){tmFlush();tm.day=d}tm.unsaved++;if(tm.unsaved>=15)tmFlush();tmShow()}
+function tmStart(sid){const keep=tm.sid==sid&&tm.started,cnt=keep?tm.cnt:0,on=keep&&tm.on;tmStop();tm={sid,on,started:keep,cnt,unsaved:0,iv:setInterval(tmTick,1000),day:ymd()};lastAct=Date.now()}
+function tmTick(){if(!tm.sid||!tm.on||document.hidden)return;if(Date.now()-lastAct>600000&&!busy())return;const d=ymd();if(d!=tm.day){tmFlush();tm.day=d}tm.unsaved++;tm.cnt++;if(tm.cnt==AUTO_ADD_S)autoAdd(tm.sid);if(tm.unsaved>=15)tmFlush();tmShow()}
 function tmFlush(){if(!tm.sid||!tm.unsaved)return false;setLog(tm.sid,tm.day,tm.unsaved,1);tm.unsaved=0;return true}
-function tmStop(){const had=tm.sid&&tmFlush();clearInterval(tm.iv);tm={sid:null,on:false,unsaved:0,iv:0,day:""};if(had)syncSoon()}
-function tmShow(){const c=$("#tmc");if(!c||!tm.sid)return;c.textContent="⏱ "+clk(logSec(tm.sid,tm.day)+tm.unsaved)+(tm.on?"":" (pause)")+" aujourd'hui · total "+hm(totalOf(tm.sid)+tm.unsaved)}
-function tmWire(s){tmStart(s.id);tmShow();
- $("#tmp").onclick=()=>{tm.on=!tm.on;$("#tmp").textContent=tm.on?"⏸":"▶";tmShow()};
- $("#tme").onclick=()=>{const cur=Math.round((logSec(s.id,tm.day)+tm.unsaved)/6)/10,v=prompt("Temps travaillé aujourd'hui sur cette fiche, en minutes :",cur);if(v===null)return;const n=parseFloat(String(v).replace(",","."));if(isNaN(n)||n<0)return;tm.unsaved=0;setLog(s.id,tm.day,Math.round(n*60));syncSoon();tmShow()};
+function tmStop(){const had=tm.sid&&tmFlush();clearInterval(tm.iv);tm={sid:null,on:false,started:false,cnt:0,unsaved:0,iv:0,day:""};if(had)syncSoon()}
+function tmShow(){const c=$("#tmc");if(!c||!tm.sid)return;c.textContent="⏱ "+clk(logSec(tm.sid,tm.day)+tm.unsaved)+(tm.started?(tm.on?"":" (en pause)"):" — chrono non lancé")+" · aujourd'hui · total "+hm(totalOf(tm.sid)+tm.unsaved)}
+function toast(m){const d=document.createElement("div");d.className="toast";d.textContent=m;document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function autoAdd(sid){const now=ymd(),T=sessAll().filter(x=>x.day==now);if(T.some(S=>S.items.some(i=>i.sid==sid)))return;
+ const S=T.find(S=>S.items.some(i=>!i.done))||T[0]||newSess("Session du "+fdate(now),now,[]);S.items.push({sid,done:false});saveExt(S.id);syncSoon();toast("➕ Ajoutée à la session du jour")}
+function tmBtn(){const b=$("#tmp");if(!b)return;b.textContent=tm.on?"⏸":(tm.started?"▶":"▶ Lancer le chrono ?");b.className="btn "+(tm.started?"sec":"blink");b.setAttribute("aria-label",tm.on?"Mettre en pause":"Lancer le chrono")}
+function tmMenu(s){const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
+ const cur=Math.round((logSec(s.id,tm.day||ymd())+tm.unsaved)/6)/10;
+ o.innerHTML=`<div style="background:var(--bg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px"><b>⏱ Temps de cette fiche</b><div class="mq">Total : ${hm(totalOf(s.id)+tm.unsaved)}</div>
+ <label>Temps d'aujourd'hui (minutes)</label><input type="number" id="tmv" step="0.5" min="0" value="${cur}"><button class="btn" id="tmok" type="button">Enregistrer</button>
+ <button class="btn sec" id="tmz" type="button" style="color:var(--ac)">Remettre le compteur de cette fiche à zéro</button><button class="btn sec" id="tmx" type="button">Fermer</button></div>`;
+ document.body.appendChild(o);const close=()=>o.remove();o.onclick=e=>{if(e.target==o)close()};$("#tmx").onclick=close;
+ $("#tmok").onclick=()=>{const n=parseFloat(String($("#tmv").value).replace(",","."));if(isNaN(n)||n<0)return;tm.unsaved=0;setLog(s.id,tm.day,Math.round(n*60));syncSoon();tmShow();close()};
+ $("#tmz").onclick=()=>{if(!confirm("Remettre à zéro tout le temps enregistré pour « "+s.titre+" » ?"))return;const ids=ext.filter(x=>x._k=="log"&&x.sid==s.id).map(x=>x.id);ext=ext.filter(x=>!(x._k=="log"&&x.sid==s.id));tm.unsaved=0;persistExt();ids.forEach(remove);syncSoon();tmShow();close()}}
+function tmWire(s){tmStart(s.id);tmShow();tmBtn();
+ $("#tmp").onclick=()=>{tm.started=true;tm.on=!tm.on;lastAct=Date.now();tmBtn();tmShow()};
+ $("#tme").onclick=()=>tmMenu(s);
  const d=$("#tmd");if(d)d.onclick=()=>{const S=ext.find(x=>x.id==view.sess);if(S){S.items.forEach(i=>{if(i.sid==s.id)i.done=true});saveExt(S.id);syncSoon()}go({n:"sv",id:view.sess})}}
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&tmFlush())syncSoon()});
 /* sessions */
@@ -443,7 +457,7 @@ function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id=
  $("#asp").onclick=()=>asOn?asStop():asStart();
  $("#asm").onclick=()=>{asLv=Math.max(1,asLv-1);jset("psr_speed",asLv);asUi()};$("#asq").onclick=()=>{asLv=Math.min(10,asLv+1);jset("psr_speed",asLv);asUi()};
  $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
-function leaveShow(){asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
+function leaveShow(){tmStop();asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
 addEventListener("touchmove",()=>{if(asOn)asStop()},{passive:true});addEventListener("wheel",()=>{if(asOn)asStop()},{passive:true});
 
 /* ===== Lecteur YouTube flottant ===== */
