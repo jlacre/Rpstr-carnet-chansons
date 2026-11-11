@@ -84,7 +84,7 @@ body.docked{padding-left:260px}body.docked .asb{left:260px}
 <script>
 const SEED=[];
 const KEY="psr_db_v2",STAT=["Connu","En cours","A voir","A compléter"],CLAV=["PSR S970","PSR 330"];
-let db,view={n:"list"},q="",flt="",tflt="",sortBy="titre";
+let db,view={n:"list"},q="",flt="",tflt="",sortBy="titre",selMode=false;const sel=new Set();
 function load(){try{const s=localStorage.getItem(KEY);if(s)return JSON.parse(s)}catch(e){}return JSON.parse(JSON.stringify(SEED))}
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){}}
 let stT;function save(){persist();clearTimeout(stT);stT=setTimeout(()=>sync(),600)}
@@ -255,20 +255,26 @@ const ytid=u=>{const m=String(u).match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
 const $=s=>document.querySelector(s),esc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const cls=s=>"s-"+(s||"").replace(/ /g,"-");
 function go(v){view=v;render();scrollTo(0,0)}
-function render(){leaveShow();sideApply();({list,show,edit,sess:sessList,sv:sessView,sed:sessEdit,cal,stats}[view.n]||list)()}
+function render(){if(view.n!="list"){selMode=false;sel.clear()}leaveShow();sideApply();({list,show,edit,sess:sessList,sv:sessView,sed:sessEdit,cal,stats}[view.n]||list)()}
 function hd(t,l,r,side){setTimeout(()=>{const h=$("#hd");if(h)document.documentElement.style.setProperty("--hh",h.offsetHeight+"px")},0);$("#hd").innerHTML=(l?`<button class="ib" id="bk">←</button>`:side?`<button class="ib" id="sbt" aria-label="Menu latéral">☰</button>`:"")+`<h1>${esc(t)}</h1>`+(r||"");if(l)$("#bk").onclick=l;if(side&&!l)$("#sbt").onclick=sideToggle}
+async function delSel(){const ids=[...sel];if(!ids.length)return;if(!confirm("Supprimer définitivement "+ids.length+" fiche"+(ids.length>1?"s":"")+" (avec leurs fichiers et leur temps enregistré) ?"))return;
+ for(const id of ids){const s=db.find(x=>x.id==id);if(s)for(const k of["midi","audio"])if(s[k])fdel(id+":"+k)}
+ const gone=new Set(ids);db=db.filter(x=>!gone.has(x.id));ids.forEach(remove);persist();
+ const lg=ext.filter(x=>x._k=="log"&&gone.has(x.sid));ext=ext.filter(x=>!(x._k=="log"&&gone.has(x.sid)));lg.forEach(x=>remove(x.id));persistExt();
+ sel.clear();selMode=false;syncSoon();list()}
 function list(){
- hd("Fiches",null,`<button class="ib" id="mn">⋮</button>`,true);$("#mn").onclick=menu;
+ hd("Fiches",null,`<button class="ib" id="sl" aria-label="Sélectionner" style="${selMode?"background:#fff3;border-radius:8px":""}">☑</button><button class="ib" id="mn">⋮</button>`,true);$("#mn").onclick=menu;$("#sl").onclick=()=>{selMode=!selMode;sel.clear();list()};
  const tt={};ext.forEach(x=>{if(x._k=="log")tt[x.sid]=(tt[x.sid]||0)+x.sec});const ql=q.toLowerCase(),a=db.filter(s=>(!flt||s.statut==flt)&&(!tflt||(tflt=="Leçon")==isLesson(s))&&(!ql||[s.titre,s.interprete,s.style,s.remarques,s.clavier].join(" ").toLowerCase().includes(ql)))
   .sort((x,y)=>sortBy=="note"?(y.note||0)-(x.note||0):(x[sortBy]||"").localeCompare(y[sortBy]||"","fr"));
  $("#app").innerHTML=`<div class="bar"><input type="search" id="q" placeholder="Rechercher…" value="${esc(q)}"><div class="chips">${[["","Tout"],["Chanson","🎵 Morceaux"],["Leçon","🎓 Leçons"]].map(([v,l])=>`<span class="chip ${tflt==v?"on":""}" data-t="${v}">${l}</span>`).join("")}</div><div class="chips">${["",...STAT].map(s=>`<span class="chip ${flt==s?"on":""}" data-s="${s}">${s||"Tous"}</span>`).join("")}<select id="so" style="width:auto"><option value="titre">Tri : titre</option><option value="interprete">Tri : interprète</option><option value="statut">Tri : statut</option><option value="note">Tri : note</option></select></div></div>`+
- a.map(s=>`<div class="row" data-id="${s.id}"><div><b>${ico(s)} ${esc(s.titre)}</b><small>${esc(s.interprete)}${tt[s.id]?" · ⏱ "+hm(tt[s.id]):""}</small></div><div class="st"><span class="${cls(s.statut)}">${esc(s.statut)}</span><br><small>${esc(s.clavier)}</small></div></div>`).join("")+
- `<div class="count">Enregistrements : ${a.length} / ${db.length} · ${syncMsg}</div><button class="fab" id="add">+</button>`;
+ a.map(s=>`<div class="row" data-id="${s.id}">${selMode?`<button class="ck ${sel.has(s.id)?"on":""}" type="button" tabindex="-1">${sel.has(s.id)?"✓":""}</button>`:""}<div style="flex:1"><b>${ico(s)} ${esc(s.titre)}</b><small>${esc(s.interprete)}${tt[s.id]?" · ⏱ "+hm(tt[s.id]):""}</small></div><div class="st"><span class="${cls(s.statut)}">${esc(s.statut)}</span><br><small>${esc(s.clavier)}</small></div></div>`).join("")+
+ `<div class="count">Enregistrements : ${a.length} / ${db.length} · ${syncMsg}</div>${selMode?`<div class="asb" id="selb"><button class="btn sec" id="sall" type="button">Tout (${a.length})</button><button class="btn sec" id="snone" type="button">Aucun</button><button class="btn" id="sdel" type="button" ${sel.size?"":"disabled"}>🗑 Supprimer (${sel.size})</button><button class="btn sec" id="scan" type="button">Annuler</button></div>`:`<button class="fab" id="add">+</button>`}`;
  const qi=$("#q");qi.oninput=e=>{q=e.target.value;const p=e.target.selectionStart;list();const n=$("#q");n.focus();n.setSelectionRange(p,p)};
  $("#so").value=sortBy;$("#so").onchange=e=>{sortBy=e.target.value;list()};
  document.querySelectorAll(".chip[data-s]").forEach(c=>c.onclick=()=>{flt=c.dataset.s;list()});document.querySelectorAll(".chip[data-t]").forEach(c=>c.onclick=()=>{tflt=c.dataset.t;list()});
- document.querySelectorAll(".row").forEach(r=>r.onclick=()=>go({n:"show",id:r.dataset.id,t:0}));
- $("#add").onclick=()=>go({n:"edit",id:null,type:tflt||"Chanson"})}
+ document.querySelectorAll(".row[data-id]").forEach(r=>r.onclick=()=>{if(selMode){const id=r.dataset.id;sel.has(id)?sel.delete(id):sel.add(id);const y=scrollY;list();scrollTo(0,y)}else go({n:"show",id:r.dataset.id,t:0})});
+ if(selMode){const y=()=>scrollY;$("#sall").onclick=()=>{a.forEach(s=>sel.add(s.id));const v=y();list();scrollTo(0,v)};$("#snone").onclick=()=>{sel.clear();const v=y();list();scrollTo(0,v)};$("#scan").onclick=()=>{selMode=false;sel.clear();list()};$("#sdel").onclick=delSel}
+ else $("#add").onclick=()=>go({n:"edit",id:null,type:tflt||"Chanson"})}
 const N=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL={Db:"C#",Eb:"D#",Gb:"F#",Ab:"G#",Bb:"A#"};
 function tr(c,t){if(!t)return c;const f=n=>{n=FL[n]||n;const i=N.indexOf(n);return i<0?n:N[(i+t+120)%12]};
  const m=c.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);return m?f(m[1])+m[2]+(m[3]?"/"+f(m[3]):""):c}
