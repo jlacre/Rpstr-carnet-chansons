@@ -56,7 +56,7 @@ a{color:var(--chord)}.hide{display:none}
 .mc{border:1px solid var(--line);border-radius:10px;margin:8px 0;padding:8px;background:var(--card)}
 .mh{font-weight:600;margin-bottom:6px}.mh small{font-weight:400;color:var(--mut);margin-left:6px;word-break:break-all}
 .mb{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.mb input[type=range]{flex:1;min-width:120px;width:auto;padding:0}
-.mq{font-size:12px;color:var(--mut)}
+.mq{font-size:12px;color:var(--mut)}#mpl{min-width:44px;font-size:16px}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
 <script>
@@ -209,7 +209,7 @@ function midiPlayer(song,hq){
   synthNote(ctx,gen,n.p,n.n,amp,w,dur)};
  const tick=()=>{if(!playing)return;const now=ctx.currentTime,lim=base+(now+0.3-t0)*rate;
   while(idx<N.length&&N[idx].t<=lim){const n=N[idx++],w=t0+(n.t-base)/rate;if(w<now-0.03)continue;voice(n,Math.max(w,now))}
-  if(cur()>=song.dur+0.2){pause();pos=0;onend()}};
+  if(base+(now-t0)*rate>=song.dur+0.3){pause();pos=0;onend()}};
  const startAt=p=>{unlock();cut();gen=ctx.createGain();gen.connect(master);base=Math.max(0,p);t0=ctx.currentTime+0.06;idx=N.findIndex(n=>n.t>=base);if(idx<0)idx=N.length;playing=true;clearInterval(timer);timer=setInterval(tick,30);tick()};
  const pause=()=>{if(playing){pos=cur();playing=false}clearInterval(timer);cut()};
  return {dur:song.dur,unlock,
@@ -233,9 +233,9 @@ async function loadMedia(s){
   else{let song;try{song=parseMidi(await f.blob.arrayBuffer())}catch(e){box.innerHTML=`Lecture impossible (${esc(e.message)}). <a href="${url}" download="${esc(nm)}">⬇ Télécharger</a>`;continue}
    if(!song.notes.length){box.innerHTML=`Aucune note dans ce fichier. <a href="${url}" download="${esc(nm)}">⬇ Télécharger</a>`;continue}
    const hq=(()=>{try{return localStorage.getItem("psr_hq")==="1"}catch(e){return false}})();
-   box.style.display="block";box.innerHTML=`<div class="mb"><button class="btn" id="mpl" type="button">▶</button><input type="range" id="mps" min="0" max="${song.dur.toFixed(2)}" step="0.05" value="0"><span id="mpt">0:00 / ${mmss(song.dur)}</span></div><div class="lc" id="midlc"></div><div class="mb"><a href="${url}" download="${esc(nm)}">⬇ Télécharger (pour le clavier)</a><span class="mq" id="mpq">rendu ${hq?"amélioré":"léger"}</span></div>`;
+   box.style.display="block";box.innerHTML=`<div class="mb"><button class="btn sec" id="mpl" type="button">▶</button><input type="range" id="mps" min="0" max="${song.dur.toFixed(2)}" step="0.05" value="0"><span id="mpt">0:00 / ${mmss(song.dur)}</span></div><div class="lc" id="midlc"></div><div class="mb"><a href="${url}" download="${esc(nm)}">⬇ Télécharger (pour le clavier)</a><span class="mq" id="mpq">rendu ${hq?"amélioré":"léger"}</span></div>`;
    midP=midiPlayer(song,hq);const P=midP,pl=$("#mpl"),sl=$("#mps"),tx=$("#mpt");let drag=0,prep=null;
-   const ui=()=>{pl.textContent=P.isPlaying()?"⏸":"▶";if(!drag)sl.value=P.t();tx.textContent=mmss(P.t())+" / "+mmss(P.dur)};
+   const ui=()=>{pl.textContent=P.isPlaying()?"⏸":"▶";pl.classList.toggle("sec",!P.isPlaying());if(!drag)sl.value=P.t();tx.textContent=mmss(P.t())+" / "+mmss(P.dur)};
    P.onEnd(ui);midUi=setInterval(ui,200);
    pl.onclick=async()=>{if(P.isPlaying()){P.pause();ui();return}P.unlock();if(!prep)prep=P.prepare(m=>{$("#mpq").textContent=m});const q=await prep;$("#mpq").textContent="rendu "+q;P.play();ui()};
    sl.oninput=()=>{drag=1;P.seek(+sl.value);tx.textContent=mmss(+sl.value)+" / "+mmss(P.dur)};sl.onchange=()=>{drag=0};
