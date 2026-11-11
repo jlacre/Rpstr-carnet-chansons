@@ -97,7 +97,7 @@ async function authCall(grant,body){let r;try{r=await fetch(SB+"/auth/v1/token?g
 async function tok(){if(!ses)throw new Error("auth");if(ses.expires_at-60<Date.now()/1000){try{await authCall("refresh_token",{refresh_token:ses.refresh_token})}catch(e){if(e.message=="auth"){ses=null;try{localStorage.removeItem(SK)}catch(x){}}throw e}}return ses.access_token}
 async function api(path,opt={}){const t=await tok();let r;try{r=await fetch(SB+path,{...opt,headers:{apikey:PK,Authorization:"Bearer "+t,...(opt.headers||{})}})}catch(e){throw new Error("net")}
  if(!r.ok)throw new Error(r.status+" "+(await r.text()).slice(0,120));return r}
-async function sync(manual){if(syncing)return;syncing=1;syncMsg="synchronisation…";if(view.n=="list")list();
+async function sync(manual){if(syncing)return;syncing=1;let again=false;syncMsg="synchronisation…";if(view.n=="list")list();
  try{for(const id of Object.keys(Q)){const qv=Q[id],act=typeof qv=="string"?qv:qv.a,qt=typeof qv=="string"?0:qv.t;
    if(act=="d")await api("/rest/v1/songs?id=eq."+encodeURIComponent(id),{method:"DELETE"});
    else{const s=db.find(x=>x.id==id)||ext.find(x=>x.id==id);let newer=false;
@@ -105,9 +105,12 @@ async function sync(manual){if(syncing)return;syncing=1;syncMsg="synchronisation
     if(s&&!newer){const {id:_,...data}=s;await api("/rest/v1/songs?on_conflict=id",{method:"POST",headers:{"Content-Type":"application/json",Prefer:"resolution=merge-duplicates"},body:JSON.stringify({id,data,updated_at:new Date().toISOString()})})}}
    delete Q[id];jset(QK,Q)}
   const rows=await (await api("/rest/v1/songs?select=id,data&limit=5000")).json();
-  const all=rows.map(r=>({...r.data,id:r.id}));db=all.filter(x=>!x._k);ext=all.filter(x=>x._k);persist();persistExt();syncMsg="synchronisé à "+new Date().toTimeString().slice(0,5);
+  const all=rows.map(r=>({...r.data,id:r.id})),lDb=db,lExt=ext;let nd=all.filter(x=>!x._k),ne=all.filter(x=>x._k);
+  for(const id of Object.keys(Q)){const qa=typeof Q[id]=="string"?Q[id]:Q[id].a;nd=nd.filter(x=>x.id!=id);ne=ne.filter(x=>x.id!=id);
+   if(qa!="d"){const a=lDb.find(x=>x.id==id),e=lExt.find(x=>x.id==id);if(a)nd.push(a);else if(e)ne.push(e)}}
+  db=nd;ext=ne;persist();persistExt();again=true;syncMsg="synchronisé à "+new Date().toTimeString().slice(0,5);
  }catch(e){if(e.message=="auth"){syncing=0;return login()}syncMsg=e.message=="net"?"hors ligne (modifications gardées)":"erreur : "+e.message;if(manual)alert("Synchronisation impossible : "+e.message)}
- finally{syncing=0;if(view.n=="list")list()}}
+ finally{syncing=0;if(view.n=="list")list();if(again&&Object.keys(Q).length)setTimeout(()=>sync(),400)}}
 const fpath=k=>{const [id,kind]=k.split(":");return ses.uid+"/"+id+"/"+kind};
 async function fput(k,v){try{await api("/storage/v1/object/fichiers/"+fpath(k),{method:"POST",headers:{"Content-Type":v.blob.type||"application/octet-stream","x-upsert":"true"},body:v.blob});return 1}catch(e){alert("Envoi du fichier impossible : "+e.message);return 0}}
 async function fget(k){try{const r=await api("/storage/v1/object/authenticated/fichiers/"+fpath(k));return {blob:await r.blob()}}catch(e){return {error:e.message}}}
@@ -551,7 +554,7 @@ async function doImport(file){
  try{let a=JSON.parse(await file.text()),f={},xs=[];if(!Array.isArray(a)){f=a.files||{};xs=a.sessions||[];a=a.songs}if(!Array.isArray(a))throw new Error("format");
   a.forEach(x=>{const j=db.findIndex(y=>y.id==x.id);if(j<0)db.push(x);else db[j]=x;touch(x.id)});persist();xs.forEach(x=>{const j=ext.findIndex(y=>y.id==x.id);if(j<0)ext.push(x);else ext[j]=x;touch(x.id)});persistExt();
   for(const k in f){const bl=await (await fetch(f[k].data)).blob();await fput(k,{name:f[k].name,blob:bl})}
-  await sync(true);alert(a.length+" fiches importées. "+syncMsg)}
+  while(syncing)await new Promise(r=>setTimeout(r,250));await sync(true);alert(a.length+" fiches importées. "+syncMsg)}
  catch(e){alert("Fichier invalide ou import impossible : "+e.message)}}
 async function exportAll(){const f={};for(const s of db)for(const k of["midi","audio"]){const v=s[k]&&await fget(s.id+":"+k);if(v&&v.blob)f[s.id+":"+k]={name:s[k],type:v.blob.type,data:await b64(v.blob)}}dl("psr_chansons.json","application/json",JSON.stringify({songs:db,sessions:ext,files:f}))}
 function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").replace(/"/g,'""')+'"';dl("psr_chansons.csv","text/csv",[k.map(e).join(","),...db.map(s=>k.map(x=>e(s[x])).join(","))].join("\n"))}
@@ -559,7 +562,7 @@ function menu(){
  const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
  o.innerHTML=`<div style="background:var(--bg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px">
  <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches</div>
- <label class="btn" style="text-align:center;cursor:pointer">Importer un fichier JSON<input type="file" id="mi" accept=".json,application/json,text/plain,*/*" style="display:none"></label>
+ <label class="btn sec" style="text-align:center;cursor:pointer;font-size:16px;color:var(--fg);margin:0">Importer un fichier JSON<input type="file" id="mi" accept=".json,application/json,text/plain,*/*" style="display:none"></label>
  <button class="btn sec" id="m4">Synchroniser maintenant</button>
  <button class="btn sec" id="m1">Exporter tout (JSON, avec fichiers)</button>
  <button class="btn sec" id="m3">Exporter (CSV)</button>
