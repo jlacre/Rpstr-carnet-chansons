@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="manifest" href="manifest.json"><title>PSR Chansons</title>
+<link rel="manifest" href="manifest.json">
+<title>PSR Chansons</title>
 <style>
 :root{--bg:#fff;--fg:#1c1b1a;--mut:#6b6762;--card:#f6f3f1;--line:#e3ded9;--ac:#9e2013;--chord:#566896;--ok:#3d8f3d;--wip:#a8a100;--todo:#777;--inc:#c26a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#161514;--fg:#eee9e4;--mut:#a09a94;--card:#222120;--line:#38352f;--ac:#d9534a;--chord:#8fa6e0;--ok:#6cc16c;--wip:#d8d04a;--todo:#a0a0a0;--inc:#ee9a3a}}
@@ -80,7 +81,7 @@ body.docked{padding-left:260px}body.docked .asb{left:260px}
 @keyframes bl{0%,100%{opacity:1;box-shadow:0 0 0 0 #9e201388}50%{opacity:.45;box-shadow:0 0 0 8px #9e201300}}.blink{animation:bl 1s infinite}
 .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;z-index:60;font-size:14px;box-shadow:0 2px 8px #0005}
 .hMD{color:var(--chord);font-weight:700}.hMG{color:var(--ac);font-weight:700}.mu{color:var(--mut)}
-.kbs svg{width:100%;height:auto;display:block;border-radius:8px}.kbc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0}.kbc label{display:flex;align-items:center;gap:4px;margin:0;font-size:14px;color:var(--fg)}.kbc input[type=range]{width:auto;flex:1;min-width:110px;padding:0}.kbi{font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}
+.scw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:8px;-webkit-overflow-scrolling:touch}.kbs .scw svg{width:auto;max-width:none;height:auto;border-radius:0}.scn{stroke:none}.scn.on{stroke:var(--fg);stroke-width:2.5px}.kbs svg{width:100%;height:auto;display:block;border-radius:8px}.kbc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0}.kbc label{display:flex;align-items:center;gap:4px;margin:0;font-size:14px;color:var(--fg)}.kbc input[type=range]{width:auto;flex:1;min-width:110px;padding:0}.kbi{font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}
 .kbl{display:flex;gap:12px;font-size:13px;color:var(--mut)}.kbl b{margin-right:4px}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
@@ -494,19 +495,42 @@ function kbInit(s){kbStop();const Q=s.seq,box=$("#kbs");if(!box)return;
   if(m==48||m==60)sv+=`<circle cx="${xw(m)+W/2}" cy="106" r="4" style="fill:${m==48?"var(--ac)":"var(--chord)"}"/>`}
  for(let m=lo;m<=hi;m++)if(BL.includes(m%12)){const x=xw(m-1)+W-9;sv+=`<rect data-k="${m}" x="${x}" y="0" width="18" height="76" rx="2" style="fill:#222;stroke:#000"/><text data-t="${m}" x="${x+9}" y="68" font-size="8" text-anchor="middle" fill="#fff" pointer-events="none"></text>`}
  sv+=`<text x="4" y="143" font-size="10" fill="currentColor">● DO MG (${48>=lo&&48<=hi?"":"hors clavier"})</text></svg>`;
- box.innerHTML=sv.replace(/<text x="4" y="143".*?<\/text>/,"")+`<div class="kbl"><span><b style="color:var(--chord)">■</b>Main droite (MD) · point bleu = DO MD</span><span><b style="color:var(--ac)">■</b>Main gauche (MG) · point rouge = DO MG</span></div>
+ box.innerHTML=`<div class="scw" id="scw"></div>`+sv.replace(/<text x="4" y="143".*?<\/text>/,"")+`<div class="kbl"><span><b style="color:var(--chord)">■</b>Main droite (MD) · point bleu = DO MD</span><span><b style="color:var(--ac)">■</b>Main gauche (MG) · point rouge = DO MG</span></div>
  <div class="kbc"><button class="btn sec" id="kbp" type="button" aria-label="Lecture">▶</button><button class="btn sec" id="kbpv" type="button" aria-label="Pas précédent">‹</button><button class="btn sec" id="knx" type="button" aria-label="Pas suivant">›</button><span class="kbi" id="kbi"></span></div>
  <div class="kbc"><input type="range" id="kbpos" min="0" max="${Q.n-1}" value="0" aria-label="Position"></div>
  <div class="kbc"><label>Tempo <input type="range" id="kbt" min="30" max="140" value="${Q.bpm}"> <span id="kbv">${Q.bpm}</span></label><label><input type="checkbox" id="kbso" checked>Son</label><label><input type="checkbox" id="kbme">Métronome</label><label><input type="checkbox" id="kblo" checked>Boucle</label></div>
  <div class="kbi" id="kbtx" style="min-height:2.6em"></div>`;
  const st={step:0,play:false,tm:0,ctx:null,mas:null};kb=st;const keys={};box.querySelectorAll("rect[data-k]").forEach(r=>keys[r.dataset.k]=r);
+
+ /* ---- portée (grande portée) synchronisée ---- */
+ const SC=(()=>{const SW=16,X0=40,YT=60,YB=124,box2=$("#scw"),els=[];
+  const MP=[0,0,1,2,2,3,3,4,5,5,6,6],AC=[0,1,0,-1,0,0,1,0,-1,0,-1,0],NN=["C","C♯","D","E♭","E","F","F♯","G","A♭","A","B♭","B"];
+  const CT=[["",[0,4,7]],["m",[0,3,7]],["7",[0,4,7,10]],["Maj7",[0,4,7,11]],["m7",[0,3,7,10]],["sus4",[0,5,7]],["dim",[0,3,6]]];
+  const pos=m=>{const pc=((m%12)+12)%12,d=(Math.floor(m/12)-1)*7+MP[pc],tr=m>=60;return{y:tr?YT-(d-30)*4:YB-(d-18)*4,a:AC[pc],tr}};
+  const chordOf=ms=>{if(ms.length<3)return"";const bass=Math.min(...ms)%12,P=[...new Set(ms.map(m=>m%12))];let best="",bs=-9;for(const r of P)for(const[nm,t]of CT){const T=t.map(x=>(x+r)%12),mt=T.filter(x=>P.includes(x)).length,ex=P.filter(x=>!T.includes(x)).length,sc=mt*3-ex*2-(T.length-mt)*4+(r==bass?1:0);if(mt>=3&&sc>bs){bs=sc;best=NN[r]+nm}}return best};
+  let ch=Array.isArray(Q.ch)?Q.ch.slice():null;
+  if(!ch){ch=[];let last="";for(let b=0;b*Q.b<Q.n;b++){const a=b*Q.b,z=a+Q.b,ev=Q.e.filter(e=>e[0]>=a&&e[0]<z),lh=ev.filter(e=>e[2]==1).flatMap(e=>e[3]),c=chordOf(lh.length>=3?lh:ev.flatMap(e=>e[3]));if(c&&c!=last){ch.push([a,c]);last=c}}}
+  const ys=Q.e.flatMap(e=>e[3].map(m=>pos(m).y)),minY=Math.min(28,...ys)-8,maxY=Math.max(YB,...ys)+8,dy=Math.max(0,30-minY),H=Math.ceil(maxY+dy+14),Wd=X0+Q.n*SW+12;
+  let g=`<svg id="scs" width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" role="img" aria-label="Partition" style="display:block;color:var(--fg)"><g transform="translate(0 ${dy})"><rect id="scp" x="${X0}" y="${minY}" width="${SW}" height="${maxY-minY}" style="fill:var(--ac);opacity:.14"/>`;
+  for(const base of[YT,YB])for(let i=0;i<5;i++)g+=`<line x1="${X0-8}" x2="${Wd-6}" y1="${base-8*i}" y2="${base-8*i}" style="stroke:currentColor;stroke-opacity:.55;stroke-width:1"/>`;
+  g+=`<text x="4" y="${YT-8}" font-size="13" font-style="italic" font-weight="700" fill="currentColor">Sol</text><text x="6" y="${YB-8}" font-size="13" font-style="italic" font-weight="700" fill="currentColor">Fa</text>`;
+  for(let b=0;b*Q.b<=Q.n;b++){const x=X0+b*Q.b*SW-2;g+=`<line x1="${x}" x2="${x}" y1="${YT-32}" y2="${YB}" style="stroke:currentColor;stroke-opacity:.6;stroke-width:1.2"/>`;if(b*Q.b<Q.n)g+=`<text x="${x+4}" y="${maxY+8}" font-size="9" fill="currentColor" opacity=".55">${b}</text>`}
+  for(const[a,c]of ch)g+=`<text x="${X0+a*SW}" y="${minY-4}" font-size="14" font-weight="700" style="fill:var(--chord)">${c}</text>`;
+  const led=(x,y,tr)=>{let o="";const L=yl=>`<line x1="${x-9}" x2="${x+9}" y1="${yl}" y2="${yl}" style="stroke:currentColor;stroke-opacity:.7;stroke-width:1.2"/>`;
+   if(tr){for(let yl=YT+8;yl<=y+1;yl+=8)o+=L(yl);for(let yl=YT-40;yl>=y-1;yl-=8)o+=L(yl)}else{for(let yl=YB-40;yl>=y-1;yl-=8)o+=L(yl);for(let yl=YB+8;yl<=y+1;yl+=8)o+=L(yl)}return o};
+  Q.e.forEach(([a,l,h,ns],i)=>{const x=X0+a*SW+6,col=h?"var(--ac)":"var(--chord)";ns.forEach(m=>{const p=pos(m);g+=led(x,p.y,p.tr)+`<line x1="${x}" x2="${X0+(a+l)*SW-3}" y1="${p.y}" y2="${p.y}" style="stroke:${col};stroke-width:3;opacity:.3"/>`+(p.a?`<text x="${x-14}" y="${p.y+4}" font-size="12" fill="currentColor">${p.a>0?"♯":"♭"}</text>`:"")+`<ellipse class="scn" data-e="${i}" cx="${x}" cy="${p.y}" rx="5.4" ry="4" style="fill:${col}"/>`})});
+  g+=`</g></svg>`;box2.innerHTML=g;
+  box2.querySelectorAll(".scn").forEach(el=>els.push([el,Q.e[+el.dataset.e]]));
+  const pl=box2.querySelector("#scp");
+  return{paint(step,smooth){pl.setAttribute("x",X0+step*SW);for(const[el,e]of els)el.classList.toggle("on",step>=e[0]&&step<e[0]+e[1]);const t=X0+step*SW-box2.clientWidth*.35;box2.scrollTo({left:Math.max(0,t),behavior:smooth?"smooth":"auto"})},
+   seek(ev){const r=box2.querySelector("#scs").getBoundingClientRect(),x=ev.clientX-r.left;return Math.max(0,Math.min(Q.n-1,Math.floor((x-X0+2)/SW)))}}})();
  const MD="var(--chord)",MG="var(--ac)",BOTH="#7a3e9d";
  const bpm=()=>+$("#kbt").value,sd=()=>60/bpm()*Q.u;
  function paint(){const on={};Q.e.forEach(([a,l,h,ns])=>{if(st.step>=a&&st.step<a+l)ns.forEach(n=>{on[n]=(on[n]!==undefined&&on[n]!==h)?2:h})});
   for(const m in keys){const r=keys[m],black=BL.includes(+m%12),c=on[m];r.style.fill=c===undefined?(black?"#222":"#fff"):(c==0?MD:c==1?MG:BOTH);const tx=box.querySelector(`text[data-t="${m}"]`);if(tx)tx.textContent=c===undefined?"":PCN2[+m%12]}
   const md=[],mg=[];Q.e.forEach(([a,l,h,ns])=>{if(st.step>=a&&st.step<a+l)(h?mg:md).push(ns.map(n=>kbName(n,h)).join("+"))});
   $("#kbtx").innerHTML=`<b class="hMD">MD</b> ${md.join(" ")||"·"} &nbsp; <b class="hMG">MG</b> ${mg.join(" ")||"·"}`;
-  const bar=Math.floor(st.step/Q.b)+1,beat=Math.floor((st.step%Q.b)*Q.u)+1;$("#kbi").textContent="Mesure "+bar+" · temps "+beat;$("#kbpos").value=st.step;$("#kbp").textContent=st.play?"⏸":"▶"}
+  const bar=Math.floor(st.step/Q.b)+1,beat=Math.floor((st.step%Q.b)*Q.u)+1;$("#kbi").textContent="Mesure "+bar+" · temps "+beat;$("#kbpos").value=st.step;$("#kbp").textContent=st.play?"⏸":"▶";SC.paint(st.step,st.play)}
  function ctxOn(){if(!st.ctx){const AC=window.AudioContext||window.webkitAudioContext;st.ctx=new AC();st.mas=st.ctx.createGain();st.mas.gain.value=.7;const c=st.ctx.createDynamicsCompressor();st.mas.connect(c);c.connect(st.ctx.destination)}if(st.ctx.state=="suspended")st.ctx.resume()}
  function sound(step,click){if(!$("#kbso").checked&&!(click&&$("#kbme").checked))return;try{ctxOn()}catch(e){return}const now=st.ctx.currentTime+.02;
   if($("#kbso").checked)Q.e.forEach(([a,l,h,ns])=>{if(a==step)ns.forEach(n=>synthNote(st.ctx,st.mas,0,n,.7,now,Math.max(.15,l*sd())))});
@@ -517,6 +541,7 @@ function kbInit(s){kbStop();const Q=s.seq,box=$("#kbs");if(!box)return;
  const mv=d=>{stop();st.step=(st.step+d+Q.n)%Q.n;paint();sound(st.step,false)};
  $("#kbpv").onclick=()=>mv(-1);$("#knx").onclick=()=>mv(1);
  $("#kbpos").oninput=e=>{stop();st.step=+e.target.value;paint();sound(st.step,false)};
+ $("#scw").onclick=e=>{stop();st.step=SC.seek(e);paint();sound(st.step,false)};
  $("#kbt").oninput=()=>{$("#kbv").textContent=bpm()};
  paint()}
 
