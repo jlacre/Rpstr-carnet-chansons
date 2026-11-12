@@ -198,18 +198,20 @@ function sessList(){hd("Sessions",null,`<button class="ib" id="sn" aria-label="N
  <div class="sec-t">Modèles</div>${mo.map(sessRow).join("")||'<div class="mq" style="padding:0 12px">Aucun modèle. Depuis une session : « Enregistrer comme modèle ».</div>'}
  <div class="sec-t">Autres jours</div>${ot.map(sessRow).join("")||'<div class="mq" style="padding:0 12px">Rien pour l’instant.</div>'}`;
  bindSv();const c=$("#sct");if(c)c.onclick=()=>go({n:"sed",id:null,day:now});$("#sn").onclick=()=>go({n:"sed",id:null,day:now})}
+const dupName=(n,day)=>/^Session du /.test(n||"")&&day?"Session du "+fdate(day):n;
 function sessView(){const S=ext.find(x=>x.id==view.id&&x._k=="sess");if(!S)return go({n:"sess"});
  hd(S.name||"Session",()=>go({n:"sess"}),`<button class="ib" id="se" aria-label="Modifier">✎</button>`);
  const [d,t]=prog(S),now=ymd(),dflt=!S.day?now:(S.day>=now?addDays(S.day,1):now);
  $("#app").innerHTML=`<div style="padding:8px 12px;color:var(--mut)">${S.day?fdate(S.day):"Modèle (non daté)"} · ${d}/${t} faites${S.day&&sessTime(S)?" · ⏱ "+hm(sessTime(S)):""}</div><div class="pbar"><i style="width:${t?Math.round(d/t*100):0}%"></i></div>
  ${S.items.map((it,k)=>{const x=song(it.sid);return `<div class="row" style="cursor:default"><button class="ck ${it.done?"on":""}" data-ck="${k}" type="button" aria-label="Fait">${it.done?"✓":""}</button><div style="flex:1;cursor:pointer" data-op="${it.sid}"><b>${x?ico(x)+" "+esc(x.titre):"(fiche supprimée)"}</b><small>${x&&x.duree?"prévu "+esc(x.duree)+" min · ":""}${S.day?hm(logSec(it.sid,S.day)):""}</small>${it.note?`<div style="white-space:pre-line;font-size:14px;margin-top:2px">📝 ${esc(it.note)}</div>`:""}</div><button class="btn sec" data-nt="${k}" type="button" aria-label="Note de session" style="align-self:center">📝</button></div>`}).join("")||'<div class="mq" style="padding:12px">Session vide — touchez ✎ pour ajouter des fiches.</div>'}
- <div class="sec-t">Reproduire</div><div style="padding:0 12px;display:flex;flex-direction:column;gap:8px"><input type="date" id="sd" value="${dflt}"><button class="btn sec" id="sdup" type="button">Dupliquer vers cette date (tout à refaire)</button><button class="btn sec" id="srep" type="button">Reporter à cette date les fiches non faites</button>${S.day?'<button class="btn sec" id="stpl" type="button">Enregistrer comme modèle</button>':""}<button class="btn sec" id="sdel" type="button" style="color:var(--ac)">Supprimer cette session</button></div>`;
+ <div class="sec-t">Reproduire</div><div style="padding:0 12px;display:flex;flex-direction:column;gap:8px"><input type="date" id="sd" value="${dflt}"><button class="btn sec" id="srn" type="button">✎ Renommer la session</button><button class="btn sec" id="sdup" type="button">Dupliquer vers cette date (tout à refaire)</button><button class="btn sec" id="srep" type="button">Reporter à cette date les fiches non faites</button>${S.day?'<button class="btn sec" id="stpl" type="button">Enregistrer comme modèle</button>':""}<button class="btn sec" id="sdel" type="button" style="color:var(--ac)">Supprimer cette session</button></div>`;
  document.querySelectorAll("[data-ck]").forEach(b=>b.onclick=()=>{const it=S.items[+b.dataset.ck];it.done=!it.done;saveExt(S.id);syncSoon();sessView()});
  document.querySelectorAll("[data-op]").forEach(b=>b.onclick=()=>go({n:"show",id:b.dataset.op,t:0,sess:S.id}));
  document.querySelectorAll("[data-nt]").forEach(b=>b.onclick=()=>noteModal(S,S.items[+b.dataset.nt],sessView));
  $("#se").onclick=()=>go({n:"sed",id:S.id});const dt=()=>$("#sd").value||dflt;
- $("#sdup").onclick=()=>{const N=newSess(S.name,dt(),S.items.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
- $("#srep").onclick=()=>{const r=S.items.filter(i=>!i.done);if(!r.length)return alert("Toutes les fiches sont faites.");const N=newSess(S.name,dt(),r.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
+ $("#srn").onclick=()=>{const v=prompt("Nom de la session",S.name||"");if(v===null)return;S.name=v.trim()||(S.day?"Session du "+fdate(S.day):"Modèle");saveExt(S.id);syncSoon();sessView()};
+ $("#sdup").onclick=()=>{const N=newSess(dupName(S.name,dt()),dt(),S.items.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
+ $("#srep").onclick=()=>{const r=S.items.filter(i=>!i.done);if(!r.length)return alert("Toutes les fiches sont faites.");const N=newSess(dupName(S.name,dt()),dt(),r.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
  const tp=$("#stpl");if(tp)tp.onclick=()=>{const N=newSess(S.name,"",S.items.map(i=>({sid:i.sid,done:false})));syncSoon();go({n:"sv",id:N.id})};
  $("#sdel").onclick=()=>{if(!confirm("Supprimer cette session ?"))return;ext=ext.filter(x=>x.id!=S.id);persistExt();remove(S.id);syncSoon();go({n:"sess"})}}
 function sessEdit(){const old=view.id&&ext.find(x=>x.id==view.id),isNew=!old;
@@ -229,7 +231,7 @@ function sessEdit(){const old=view.id&&ext.find(x=>x.id==view.id),isNew=!old;
  document.querySelectorAll("[data-pf]").forEach(c=>c.onclick=()=>{pf=c.dataset.pf;document.querySelectorAll("[data-pf]").forEach(x=>x.classList.toggle("on",x==c));pick()});
  items();pick();
  $("#ok").onclick=()=>{const day=$("#sdt").value,name=$("#snm").value.trim()||(day?"Session du "+fdate(day):"Modèle");
-  if(old){old.name=name;old.day=day;old.items=W.items;saveExt(old.id);syncSoon();go({n:"sv",id:old.id})}else{const N=newSess(name,day,W.items);syncSoon();go({n:"sv",id:N.id})}}}
+  if(old){const nm=(old&&$("#snm").value.trim()==old.name&&day!=old.day)?dupName(old.name,day):name;old.name=nm;old.day=day;old.items=W.items;saveExt(old.id);syncSoon();go({n:"sv",id:old.id})}else{const N=newSess(name,day,W.items);syncSoon();go({n:"sv",id:N.id})}}}
 let calM=null,calSel=ymd(),statP="7";
 function cal(){hd("Calendrier",null,"",true);const now=ymd();if(!calM){const d=new Date();calM={y:d.getFullYear(),m:d.getMonth()}}
  const {y,m}=calM,off=(new Date(y,m,1).getDay()+6)%7,nd=new Date(y,m+1,0).getDate(),secs={},sc={};
