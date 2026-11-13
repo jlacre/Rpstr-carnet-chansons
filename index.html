@@ -81,7 +81,7 @@ body.docked{padding-left:260px}body.docked .asb{left:260px}
 @keyframes bl{0%,100%{opacity:1;box-shadow:0 0 0 0 #9e201388}50%{opacity:.45;box-shadow:0 0 0 8px #9e201300}}.blink{animation:bl 1s infinite}
 .toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:20px;z-index:60;font-size:14px;box-shadow:0 2px 8px #0005}
 .hMD{color:var(--chord);font-weight:700}.hMG{color:var(--ac);font-weight:700}.mu{color:var(--mut)}
-.scw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:8px;-webkit-overflow-scrolling:touch}.kbs .scw svg{width:auto;max-width:none;height:auto;border-radius:0}.scn{stroke:none}.scn.on{stroke:var(--fg);stroke-width:2.5px}.kbs svg{width:100%;height:auto;display:block;border-radius:8px}.kbc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0}.kbc label{display:flex;align-items:center;gap:4px;margin:0;font-size:14px;color:var(--fg)}.kbc input[type=range]{width:auto;flex:1;min-width:110px;padding:0}.kbi{font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}
+.mtm{position:fixed;right:8px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:40;display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:6px 8px;box-shadow:0 2px 10px #0003}.mtm button,.mfc button:not(.btn){min-width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--fg);font:inherit;font-size:16px}.mtm b.mtv{min-width:2.4em;text-align:center;font-size:18px}.mtd,.mfd{display:flex;gap:4px;align-items:center}.mtd i,.mfd i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}.mtd i.on,.mfd i.on{background:var(--ac);transform:scale(1.3)}.mfd{justify-content:center;gap:8px;padding:6px}.mfd i{width:18px;height:18px}#mtb.on{background:var(--ac);color:#fff}.mfo{position:fixed;inset:0;background:#0008;z-index:60;display:flex;align-items:center;justify-content:center;padding:12px}.mfc{background:var(--bg);color:var(--fg);width:100%;max-width:480px;max-height:92vh;overflow:auto;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px}.mfh{display:flex;justify-content:space-between;align-items:center;font-size:18px}.mfn{display:flex;align-items:center;justify-content:space-between;gap:6px}.mfn span{text-align:center;display:flex;flex-direction:column}.mfn b{font-size:44px;line-height:1}.mfn button{min-width:52px;height:46px}.mfr{display:flex;gap:8px;flex-wrap:wrap}.mfg{display:grid;grid-template-columns:1fr 1fr;gap:8px}.mfg label{display:flex;flex-direction:column;gap:2px;font-size:13px;color:var(--mut)}.mfg label.mfk,.mfpg label.mfk{flex-direction:row;align-items:center;gap:6px;color:var(--fg);font-size:15px}.mfpg{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:6px}.mfg2{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.mfg2 input{width:4.2em}#mfs{width:100%}.scw{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--bg);margin-bottom:8px;-webkit-overflow-scrolling:touch}.kbs .scw svg{width:auto;max-width:none;height:auto;border-radius:0}.scn{stroke:none}.scn.on{stroke:var(--fg);stroke-width:2.5px}.kbs svg{width:100%;height:auto;display:block;border-radius:8px}.kbc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:6px 0}.kbc label{display:flex;align-items:center;gap:4px;margin:0;font-size:14px;color:var(--fg)}.kbc input[type=range]{width:auto;flex:1;min-width:110px;padding:0}.kbi{font-size:14px;color:var(--mut);font-variant-numeric:tabular-nums}
 .kbl{display:flex;gap:12px;font-size:13px;color:var(--mut)}.kbl b{margin-right:4px}
 </style></head><body>
 <header id="hd"></header><main id="app"></main>
@@ -171,6 +171,7 @@ function tmMenu(s){const o=document.createElement("div");o.style.cssText="positi
 function tmWire(s){tmStart(s.id);tmShow();tmBtn();
  $("#tmp").onclick=()=>{tm.started=true;tm.on=!tm.on;lastAct=Date.now();tmBtn();tmShow()};
  $("#tme").onclick=()=>tmMenu(s);
+ $("#mtb").onclick=()=>MET.toggleMini();$("#mtf").onclick=()=>MET.open(parseInt(s.tempo)||0);MET.ui();
  if(view.sess){const S=ext.find(x=>x.id==view.sess),it=S&&S.items.find(i=>i.sid==s.id),show_=()=>{$("#snt").textContent=it&&it.note?"📝 "+it.note:"Pas de note pour cette session"};if(it){show_();$("#sne").onclick=()=>noteModal(S,it,show_)}else $("#snr").remove()}
  const d=$("#tmd");if(d)d.onclick=()=>{const S=ext.find(x=>x.id==view.sess);if(S){S.items.forEach(i=>{if(i.sid==s.id)i.done=true});saveExt(S.id);syncSoon()}go({n:"sv",id:view.sess})}}
 document.addEventListener("visibilitychange",()=>{if(document.hidden&&tmFlush())syncSoon()});
@@ -293,6 +294,8 @@ function list(){
 const N=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL={Db:"C#",Eb:"D#",Gb:"F#",Ab:"G#",Bb:"A#"};
 function tr(c,t){if(!t)return c;const f=n=>{n=FL[n]||n;const i=N.indexOf(n);return i<0?n:N[(i+t+120)%12]};
  const m=c.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);return m?f(m[1])+m[2]+(m[3]?"/"+f(m[3]):""):c}
+const KN=["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+function keyOf(txt){const m=(txt||"").match(/\[([A-G][#b]?)(m(?!aj))?/);if(!m)return null;const i=N.indexOf(FL[m[1]]||m[1]);return i<0?null:{i,min:!!m[2]}}
 const hl=s=>esc(s).replace(/\b(MD|MG)\b/g,'<b class="h$1">$1</b>').replace(/[·─]/g,'<span class="mu">$&</span>');
 function chords(txt,t,lsn){const E=lsn?hl:esc;return (txt||"").split("\n").map(l=>{
  const p=l.split(/\[([^\]]+)\]/);let h="";
@@ -380,8 +383,9 @@ function midiPlayer(song,hq){
   Object.values(inst).forEach(i=>{try{i.stop()}catch(e){}})};
  const voice=(n,w)=>{const dur=Math.max(0.05,n.d/rate),amp=Math.min(1,n.v*(0.4+0.6*n.g)*1.1);
   if(n.c==9)return drumHit(ctx,gen,n.n,amp*0.9,w);
-  if(hq&&inst[n.p])try{return inst[n.p].play(n.n,w,{duration:dur,gain:amp*1.4})}catch(e){}
-  synthNote(ctx,gen,n.p,n.n,amp,w,dur)};
+  const nn=n.n+(typeof midTr=="number"?midTr:0);
+  if(hq&&inst[n.p])try{return inst[n.p].play(nn,w,{duration:dur,gain:amp*1.4})}catch(e){}
+  synthNote(ctx,gen,n.p,nn,amp,w,dur)};
  const tick=()=>{if(!playing)return;const now=ctx.currentTime,lim=base+(now+0.3-t0)*rate;
   while(idx<N.length&&N[idx].t<=lim){const n=N[idx++],w=t0+(n.t-base)/rate;if(w<now-0.03)continue;voice(n,Math.max(w,now))}
   if(base+(now-t0)*rate>=song.dur+0.3){pause();pos=0;onend()}};
@@ -482,6 +486,63 @@ function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id=
  $("#asp").onclick=()=>asOn?asStop():asStart();
  $("#asm").onclick=()=>{asLv=Math.max(1,asLv-1);jset("psr_speed",asLv);asUi()};$("#asq").onclick=()=>{asLv=Math.min(10,asLv+1);jset("psr_speed",asLv);asUi()};
  $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
+
+
+/* ===== Métronome (module autonome : MET.open(), MET.toggleMini()) ===== */
+const MET=(()=>{
+ const K="psr_met",S={bpm:100,num:4,sub:1,acc:1,vol:.7,prog:0,pn:4,pstep:5,pmax:160,mini:0};
+ try{Object.assign(S,JSON.parse(localStorage.getItem(K)||"{}"))}catch(e){}
+ const AC=window.AudioContext||window.webkitAudioContext,save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+ let ctx=null,run=0,next=0,tick=0,bar=0,iv=0,q=[],raf=0,b0=100,taps=[],full=null,songT=0;
+ const SUBS=[[1,"♩ Noires (1 clic / temps)"],[2,"♪ Croches (2 / temps)"],[3,"Triolets (3 / temps)"],[4,"Doubles croches (4 / temps)"]];
+ const $$=x=>document.querySelectorAll(x),dots=n=>Array.from({length:n},()=>"<i></i>").join("");
+ function click(t,kind){const o=ctx.createOscillator(),g=ctx.createGain(),f=[1800,1150,800][kind],pk=S.vol*[1,.7,.35][kind];o.type="sine";o.frequency.value=f;
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(pk,t+.002);g.gain.exponentialRampToValueAtTime(.0001,t+.06);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+.08)}
+ function pump(){while(next<ctx.currentTime+.15){const per=S.sub*S.num,k=tick%per,beat=Math.floor(k/S.sub),sb=k%S.sub;
+   click(next,sb?2:(beat==0&&S.acc?0:1));q.push([next,beat,sb,bar]);tick++;
+   if(tick%per==0){bar++;if(S.prog&&S.pn>0&&bar%S.pn==0&&S.bpm<S.pmax){S.bpm=Math.min(S.pmax,S.bpm+S.pstep);q.push([next,-1,0,bar])}}
+   next+=60/S.bpm/S.sub}}
+ function draw(ev){const[,beat,sb,b]=ev;if(beat>=0&&!sb)$$(".mtd,.mfd").forEach(d=>{[...d.children].forEach((c,i)=>c.classList.toggle("on",i==beat))});
+  $$(".mtv").forEach(e=>e.textContent=S.bpm);const sl=$$("#mfs")[0];if(sl)sl.value=S.bpm;const fb=$$("#mfb")[0];if(fb)fb.textContent="Mesure "+(b+1)+(S.prog?" · palier toutes les "+S.pn+" mesures":"")}
+ function frame(){if(!run)return;const now=ctx.currentTime;let last=null;while(q.length&&q[0][0]<=now)last=q.shift();if(last)draw(last);raf=requestAnimationFrame(frame)}
+ function start(){if(run)return;if(!ctx)ctx=new AC();if(ctx.resume)ctx.resume();run=1;b0=S.bpm;tick=0;bar=0;q=[];next=ctx.currentTime+.08;iv=setInterval(pump,25);pump();raf=requestAnimationFrame(frame);ui()}
+ function stop(){if(!run)return;run=0;clearInterval(iv);cancelAnimationFrame(raf);if(S.prog&&S.bpm!=b0){S.bpm=b0;save()}$$(".mtd i,.mfd i").forEach(c=>c.classList.remove("on"));ui()}
+ function setBpm(v){S.bpm=Math.max(20,Math.min(300,Math.round(v)));save();$$(".mtv").forEach(e=>e.textContent=S.bpm);const sl=$$("#mfs")[0];if(sl)sl.value=S.bpm}
+ function ui(){$$("#mtp").forEach(b=>b.textContent=run?"⏸":"▶");$$("#mfp").forEach(b=>b.textContent=run?"⏸ Arrêter":"▶ Démarrer");$$("#mtb").forEach(b=>b.classList.toggle("on",!!S.mini||!!run));$$(".mtv").forEach(e=>e.textContent=S.bpm)}
+ function mini(on){S.mini=on?1:0;save();let m=document.getElementById("mtm");if(!on){if(m)m.remove();stop();ui();return}
+  if(!m){m=document.createElement("div");m.id="mtm";m.className="mtm";document.body.appendChild(m)}
+  m.innerHTML=`<span class="mtd">${dots(S.num)}</span><button type="button" id="mtm1" aria-label="Moins">−</button><b class="mtv">${S.bpm}</b><button type="button" id="mtm2" aria-label="Plus">+</button><button type="button" id="mtp" aria-label="Démarrer">▶</button><button type="button" id="mtg" aria-label="Réglages">⚙</button><button type="button" id="mtx" aria-label="Fermer">✕</button>`;
+  m.querySelector("#mtm1").onclick=()=>setBpm(S.bpm-1);m.querySelector("#mtm2").onclick=()=>setBpm(S.bpm+1);
+  m.querySelector("#mtp").onclick=()=>run?stop():start();m.querySelector("#mtg").onclick=()=>open();m.querySelector("#mtx").onclick=()=>mini(0);
+  m.ondblclick=e=>{if(!e.target.closest("button"))open()};ui()}
+ function open(t){if(t)songT=t;if(full)return;if(!S.mini)mini(1);
+  const o=document.createElement("div");o.className="mfo";full=o;
+  o.innerHTML=`<div class="mfc"><div class="mfh"><b>🎼 Métronome</b><button type="button" id="mfx" aria-label="Fermer">✕</button></div>
+  <div class="mfd">${dots(S.num)}</div>
+  <div class="mfn"><button type="button" data-d="-5">−5</button><button type="button" data-d="-1">−1</button><span><b class="mtv">${S.bpm}</b><small>BPM</small></span><button type="button" data-d="1">+1</button><button type="button" data-d="5">+5</button></div>
+  <input type="range" id="mfs" min="30" max="240" value="${S.bpm}" aria-label="Tempo">
+  <div class="mfr"><button class="btn" id="mfp" type="button"></button><button class="btn sec" id="mft" type="button">👆 Tap tempo</button>${songT?`<button class="btn sec" id="mfk" type="button">Tempo de la fiche (${songT})</button>`:""}</div>
+  <div class="mfg"><label>Temps par mesure <select id="mfm">${Array.from({length:12},(_,i)=>`<option ${i+1==S.num?"selected":""}>${i+1}</option>`).join("")}</select></label>
+  <label>Figure <select id="mfsub">${SUBS.map(([v,l])=>`<option value="${v}" ${v==S.sub?"selected":""}>${l}</option>`).join("")}</select></label>
+  <label class="mfk"><input type="checkbox" id="mfa" ${S.acc?"checked":""}> Accent 1er temps</label>
+  <label>Volume <input type="range" id="mfv" min="0.1" max="1" step="0.05" value="${S.vol}"></label></div>
+  <div class="mfpg"><label class="mfk"><input type="checkbox" id="mfpc" ${S.prog?"checked":""}> <b>Métronome progressif</b></label>
+  <div class="mfg2">Toutes les <input type="number" id="mfpn" min="1" max="64" value="${S.pn}"> mesures, <b>+</b><input type="number" id="mfps" min="1" max="50" value="${S.pstep}"> BPM, jusqu'à <input type="number" id="mfpm" min="30" max="300" value="${S.pmax}"> BPM</div>
+  <small class="mq">À l'arrêt, le tempo revient à sa valeur de départ.</small></div><div id="mfb" class="mq" style="text-align:center"></div></div>`;
+  document.body.appendChild(o);const g=x=>o.querySelector(x),close=()=>{o.remove();full=null;ui()};
+  o.onclick=e=>{if(e.target==o)close()};g("#mfx").onclick=close;
+  o.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>setBpm(S.bpm+ +b.dataset.d));
+  g("#mfs").oninput=e=>setBpm(+e.target.value);g("#mfp").onclick=()=>run?stop():start();
+  g("#mft").onclick=()=>{const n=Date.now();if(taps.length&&n-taps[taps.length-1]>2000)taps=[];taps.push(n);taps=taps.slice(-6);if(taps.length>1)setBpm(60000/((taps[taps.length-1]-taps[0])/(taps.length-1)))};
+  const k=g("#mfk");if(k)k.onclick=()=>setBpm(songT);
+  const redots=()=>{$$(".mtd,.mfd").forEach(d=>d.innerHTML=dots(S.num))};
+  g("#mfm").onchange=e=>{S.num=+e.target.value;save();redots()};g("#mfsub").onchange=e=>{S.sub=+e.target.value;save()};
+  g("#mfa").onchange=e=>{S.acc=e.target.checked?1:0;save()};g("#mfv").oninput=e=>{S.vol=+e.target.value;save()};
+  g("#mfpc").onchange=e=>{S.prog=e.target.checked?1:0;save()};
+  const num=(id,key,lo,hi)=>g(id).onchange=e=>{S[key]=Math.max(lo,Math.min(hi,+e.target.value||lo));e.target.value=S[key];save()};
+  num("#mfpn","pn",1,64);num("#mfps","pstep",1,50);num("#mfpm","pmax",30,300);ui()}
+ if(S.mini)addEventListener("DOMContentLoaded",()=>mini(1));
+ return{open,toggleMini:()=>mini(!S.mini),ui,get mini(){return S.mini}}})();
 
 /* ===== Clavier visuel (leçons avec séquence) ===== */
 let kbOpen=(()=>{try{return localStorage.getItem("psr_kb")!=="0"}catch(e){return true}})(),kb=null;
@@ -587,11 +648,13 @@ function pipOpen(id,sid){pipClose();const p=document.createElement("div");p.id="
  h.onpointerup=h.onpointercancel=()=>{dr=0}}
 addEventListener("resize",pipFit);
 let infoOpen=(()=>{try{return localStorage.getItem("psr_info")!=="0"}catch(e){return true}})();
+let midTr=0;
 function show(){
  const i=db.findIndex(s=>s.id==view.id),s=db[i];if(!s)return go({n:"list"});
+ if(!view.t0){view.t0=1;view.t=s.tr||0}midTr=view.t||0;
  hd(s.titre,()=>go(view.sess?{n:"sv",id:view.sess}:{n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
  const F=(l,v)=>v?`<div><span>${l}</span>${esc(v)}</div>`:"",vids=[s.url,s.url2].filter(Boolean);
- $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="tmr"><span id="tmc"></span><button class="btn sec" id="tmp" type="button" aria-label="Pause du chrono">⏸</button><button class="btn sec" id="tme" type="button">✎ Temps</button>${view.sess?`<button class="btn" id="tmd" type="button">✓ Fait</button>`:""}</div>${view.sess?`<div class="tmr" id="snr"><span id="snt" style="white-space:pre-line"></span><button class="btn sec" id="sne" type="button">📝 Note de session</button></div>`:""}<div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Objectif",s.objectif)}${F("Durée prévue",s.duree?s.duree+" min":"")}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr"><div><span>Remarques</span>${isLesson(s)?hl(s.remarques):esc(s.remarques)}</div></div>`:""}
+ $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="tmr"><span id="tmc"></span><button class="btn sec" id="tmp" type="button" aria-label="Pause du chrono">⏸</button><button class="btn sec" id="tme" type="button">✎ Temps</button><button class="btn sec" id="mtb" type="button" aria-label="Métronome">♩ Métronome</button><button class="btn sec" id="mtf" type="button" aria-label="Métronome : réglages complets">⚙</button>${view.sess?`<button class="btn" id="tmd" type="button">✓ Fait</button>`:""}</div>${view.sess?`<div class="tmr" id="snr"><span id="snt" style="white-space:pre-line"></span><button class="btn sec" id="sne" type="button">📝 Note de session</button></div>`:""}<div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Objectif",s.objectif)}${F("Durée prévue",s.duree?s.duree+" min":"")}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr"><div><span>Remarques</span>${isLesson(s)?hl(s.remarques):esc(s.remarques)}</div></div>`:""}
  ${s.hyperlink?`<div class="sec-t">Lien</div><div style="padding:0 12px"><a href="${esc(s.hyperlink)}" target="_blank" rel="noopener">🔗 ${esc(s.hyperlink.slice(0,60))}</a></div>`:""}</div>
  ${s.seq?`<div class="sec-t tg" id="tgk"><span id="tgka">${kbOpen?"▾":"▸"}</span><b>Clavier</b></div><div id="kbb" class="${kbOpen?"":"hide"}" style="padding:0 12px"><div class="kbs" id="kbs"></div></div>`:""}
  <div class="sec-t tg" id="tgm"><span id="tgma">${mediaOpen?"▾":"▸"}</span><b>Médias</b></div><div id="medb" class="${mediaOpen?"":"hide"}" style="padding:0 12px">
@@ -599,7 +662,7 @@ function show(){
  ${s.audio?`<div class="mc"><div class="mh">🎵 Audio<small>${esc(s.audio)}</small></div><div class="mb" id="mb-audio">Chargement…</div></div>`:""}
  ${s.midi?`<div class="mc"><div class="mh">🎹 MIDI<small>${esc(s.midi)}</small></div><div class="mb" id="mb-midi">Chargement…</div></div>`:""}
  ${!vids.length&&!s.audio&&!s.midi?'<div class="mq" style="margin:8px 0">Aucun média (à ajouter via ✎)</div>':""}</div>
- <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button><span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span></div><div class="song">${chords(s.accords,view.t,isLesson(s))||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
+ <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button>${(()=>{const k=isLesson(s)?null:keyOf(s.accords);if(!k)return'<span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span>';const cur=((k.i+view.t)%12+12)%12;return `<label style="display:flex;align-items:center;gap:6px">Tonalité <select id="tk">${KN.map((n,j)=>`<option value="${j}" ${j==cur?"selected":""}>${n}${k.min?"m":""}${j==k.i?" (originale)":""}</option>`).join("")}</select></label>`})()}${view.t?'<button class="btn sec" id="t0" type="button">↺ Tonalité d\'origine</button>':""}</div><div class="song">${chords(s.accords,view.t,isLesson(s))||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
  document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt,s.id));
  $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
  $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
@@ -608,7 +671,7 @@ function show(){
  tmWire(s);if(s.seq)kbInit(s);loadMedia(s);refreshSong(s.id);
  const nav=d=>{const S=view.sess&&ext.find(x=>x.id==view.sess),ids=S&&S.items.filter(x=>song(x.sid)).length>1?S.items.map(x=>x.sid).filter(song):db.map(x=>x.id),k=ids.indexOf(s.id);go({n:"show",id:ids[(k+d+ids.length)%ids.length],t:0,sess:view.sess})};
  $("#pv").onclick=()=>nav(-1);$("#nx").onclick=()=>nav(1);$("#ed").onclick=()=>go({n:"edit",id:s.id});
- $("#m").onclick=()=>{view.t--;curChord=null;show()};$("#p").onclick=()=>{view.t++;curChord=null;show()}}
+ const setT=t=>{view.t=t;s.tr=t||undefined;if(!t)delete s.tr;touch(s.id);save();curChord=null;show()};$("#m").onclick=()=>setT(view.t-1);$("#p").onclick=()=>setT(view.t+1);const tk=$("#tk");if(tk)tk.onchange=()=>{const k=keyOf(s.accords),d=(((+tk.value-k.i)%12)+12)%12;setT(d>6?d-12:d)};const t0=$("#t0");if(t0)t0.onclick=()=>setT(0)}
 const FD=[["titre","Titre *"],["interprete","Interprète"],["style","Style"],["registration","Registration"],["tempo","Tempo","number"],["voix1","Voix 1"],["voix2","Voix 2"],["date","Date perform.","date"],["url","URL vidéo 1"],["url2","URL vidéo 2"],["hyperlink","Lien"]];
 function edit(){
  const s=view.id?{...db.find(x=>x.id==view.id)}:{id:"n"+Date.now(),type:view.type||"Chanson",statut:"A voir",note:0,accords:""};const isNew=!view.id;
