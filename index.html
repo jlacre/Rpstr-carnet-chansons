@@ -50,7 +50,7 @@ a{color:var(--chord)}.hide{display:none}
 .lc button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:12px}
 .lc button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 .lc select,.lc input[type=range]{width:auto;padding:2px 4px;font-size:12px;max-width:150px}
-.lc .ls{color:var(--mut);margin-left:auto}.lc .lv{min-width:3em}
+.lc .ls{color:var(--mut);margin-left:auto}.lc .lv{min-width:3em}.lc .lk{width:100%;display:flex;flex-wrap:wrap;gap:4px}.lc .mk{display:inline-flex}.lc .mk button:first-child{border-radius:6px 0 0 6px}.lc .mk button:last-child{border-radius:0 6px 6px 0;padding:3px 6px}.lc .mk i{font-style:normal;opacity:.7}
 #pip .lc{background:#222;color:#fff}#pip .lc button{background:#444;color:#fff;border-color:#555}#pip .lc button.on{background:#c0392b;border-color:#c0392b}#pip .lc select{background:#444;color:#fff;border-color:#555}#pip .lc .ls{color:#ccc}
 #ytbox{aspect-ratio:16/9;background:#000}#ytbox iframe{display:block;width:100%;height:100%;aspect-ratio:auto;border:0}
 
@@ -628,7 +628,7 @@ function mkLoop(box,api,sid,key){
  const store=()=>{const s=song();if(!s)return;s.loops=s.loops||{};if(a==null&&b==null)delete s.loops[key];else s.loops[key]=[a,b];touch(s.id);save()};
  const rate=api.rates?`<select class="lr" aria-label="Vitesse">${api.rates.map(r=>`<option value="${r}" ${r==api.getRate()?"selected":""}>${r}×</option>`).join("")}</select>`
   :`<input type="range" class="lr" min="0.5" max="1.5" step="0.05" value="${api.getRate()}" aria-label="Vitesse"><span class="lv">${(+api.getRate()).toFixed(2)}×</span>`;
- box.innerHTML=`${rate}<button class="la" type="button">A</button><button class="lb" type="button">B</button><button class="lo" type="button" title="Boucle">🔁</button><button class="lx" type="button" title="Effacer la boucle">✕</button><span class="ls"></span>`;
+ box.innerHTML=`${rate}<button class="la" type="button">A</button><button class="lb" type="button">B</button><button class="lo" type="button" title="Boucle">🔁</button><button class="lx" type="button" title="Effacer la boucle">✕</button><button class="lm" type="button" title="Ajouter un signet à cet instant">🔖+</button><span class="ls"></span><div class="lk"></div>`;
  const q=s=>box.querySelector(s),ui=()=>{q(".ls").textContent="A "+(a==null?"—":fmt(a))+" · B "+(b==null?"—":fmt(b));q(".lo").classList.toggle("on",on);q(".la").classList.toggle("on",a!=null);q(".lb").classList.toggle("on",b!=null)};
  const run=()=>{clearInterval(iv);if(on&&a!=null&&b!=null&&b>a)iv=setInterval(()=>{try{if(api.t()>=b)api.seek(a)}catch(e){}},60)};
  q(".lr").oninput=q(".lr").onchange=e=>{const v=+e.target.value;api.setRate(v);const lv=q(".lv");if(lv)lv.textContent=v.toFixed(2)+"×"};
@@ -636,7 +636,12 @@ function mkLoop(box,api,sid,key){
  q(".lb").onclick=()=>{const x=api.t();if(a==null)a=0;if(x<=a){a=null;b=x}else b=x;on=a!=null&&b!=null;store();run();ui()};
  q(".lo").onclick=()=>{if(a==null||b==null||b<=a)return;on=!on;if(on)api.seek(a);run();ui()};
  q(".lx").onclick=()=>{a=b=null;on=false;store();run();ui()};
- ui();return {destroy(){clearInterval(iv)}}}
+ const M=()=>{const s=song();return(s&&s.marks&&s.marks[key])||[]},mt=x=>{x=Math.max(0,Math.round(x||0));return Math.floor(x/60)+":"+String(x%60).padStart(2,"0")};
+ const saveM=m=>{const s=song();if(!s)return;s.marks=s.marks||{};if(m.length)s.marks[key]=m;else{delete s.marks[key];if(!Object.keys(s.marks).length)delete s.marks}touch(s.id);save()};
+ const drawM=()=>{q(".lk").innerHTML=M().map((m,i)=>`<span class="mk"><button type="button" data-g="${i}">🔖 ${esc(m.l||"")} <i>${mt(m.t)}</i></button><button type="button" data-e="${i}" aria-label="Modifier le signet">✎</button></span>`).join("")};
+ q(".lm").onclick=()=>{const t=api.t(),l=prompt("Libellé du signet à "+mt(t),"");if(l===null)return;const m=M().slice();m.push({t:Math.round(t*10)/10,l:l.trim()});m.sort((x,y)=>x.t-y.t);saveM(m);drawM()};
+ q(".lk").onclick=e=>{const g=e.target.closest("[data-g]"),ed=e.target.closest("[data-e]");if(g){const m=M()[+g.dataset.g];if(m)api.seek(m.t)}else if(ed){const i=+ed.dataset.e,m=M().slice(),c=m[i];if(!c)return;const l=prompt("Libellé du signet ("+mt(c.t)+") — vide pour le supprimer",c.l||"");if(l===null)return;if(!l.trim()){if(confirm("Supprimer ce signet ?"))m.splice(i,1);else return}else c.l=l.trim();saveM(m);drawM()}};
+ drawM();ui();return {destroy(){clearInterval(iv)}}}
 function ytApi(){return new Promise((ok,ko)=>{if(window.YT&&YT.Player)return ok();const prev=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{try{prev&&prev()}catch(e){}ok()};
  if(!document.getElementById("ytapi")){const s=document.createElement("script");s.id="ytapi";s.src="https://www.youtube.com/iframe_api";s.onerror=ko;document.head.appendChild(s)}setTimeout(ko,8000)})}
 function pipClose(){if(ytLp){ytLp.destroy();ytLp=null}try{if(ytP)ytP.destroy()}catch(e){}ytP=null;const p=$("#pip");if(p)p.remove()}
@@ -722,7 +727,7 @@ function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").repla
 function menu(){
  const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
  o.innerHTML=`<div style="background:var(--bg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px">
- <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches · version 19</div>
+ <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches · version 20</div>
  <label class="btn sec" style="text-align:center;cursor:pointer;font-size:16px;color:var(--fg);margin:0">Importer un fichier JSON<input type="file" id="mi" accept=".json,application/json,text/plain,*/*" style="display:none"></label>
  <button class="btn sec" id="m4">Synchroniser maintenant</button>
  <button class="btn sec" id="m1">Exporter tout (JSON, avec fichiers)</button>
