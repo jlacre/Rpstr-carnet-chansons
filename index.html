@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<link rel="manifest" href="manifest.json">
 <title>PSR Chansons</title>
 <style>
 :root{--bg:#fff;--fg:#1c1b1a;--mut:#6b6762;--card:#f6f3f1;--line:#e3ded9;--ac:#9e2013;--chord:#566896;--ok:#3d8f3d;--wip:#a8a100;--todo:#777;--inc:#c26a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -25,6 +24,7 @@ input[type=search],input[type=password],input[type=text],input[type=number],inpu
 .s-Connu{color:var(--ok)}.s-En-cours{color:var(--wip)}.s-A-voir{color:var(--todo)}.s-A-compléter{color:var(--inc)}
 .fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:56px;height:56px;border-radius:16px;font-size:28px;background:var(--ac);color:#fff;border:0;box-shadow:0 2px 8px #0005;cursor:pointer}
 .count{padding:8px 12px;color:var(--mut);font-size:13px}
+.hm{padding:0 12px 8px}.hrow{display:flex;gap:10px;flex-wrap:wrap}.hrow label{font-size:14px;display:flex;align-items:center;gap:6px}.hch{display:flex;flex-wrap:wrap;gap:6px}.hc{display:inline-flex;flex-direction:column;align-items:center;min-width:48px;padding:4px 8px;border:2px solid var(--fc,var(--line));background:var(--card);color:var(--fg);border-radius:8px;font:inherit;cursor:pointer}.hc small{font-size:11px;color:var(--mut)}.hc.on{background:var(--fc,var(--chord));color:#fff}.hc.on small{color:#fff}
 .sec-t{color:var(--chord);font-weight:600;margin:16px 12px 6px}
 .grid div{white-space:pre-line}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;padding:0 12px}.grid div span{display:block;color:var(--mut);font-size:12px}
 .song{font-family:ui-monospace,monospace;font-size:15px;padding:8px 12px;overflow-x:auto}
@@ -298,6 +298,82 @@ const N=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"],FL={Db:"C#",Eb:"D
 function tr(c,t){if(!t)return c;const f=n=>{n=FL[n]||n;const i=N.indexOf(n);return i<0?n:N[(i+t+120)%12]};
  const m=c.match(/^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/);return m?f(m[1])+m[2]+(m[3]?"/"+f(m[3]):""):c}
 const KN=["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"];
+/* ===== Harmonie (module : HARM.mount(el,{seq,t,tkey,save})) ===== */
+const HARM=(()=>{
+ const NR={C:0,D:2,E:4,F:5,G:7,A:9,B:11},LET=["C","D","E","F","G","A","B"],FRN={C:"Do",D:"Ré",E:"Mi",F:"Fa",G:"Sol",A:"La",B:"Si"};
+ const KM=["C","Db","D","Eb","E","F","F#","G","Ab","A","Bb","B"],Km=["C","C#","D","Eb","E","F","F#","G","G#","A","Bb","B"];
+ const SC={maj:["Majeure",[0,2,4,5,7,9,11]],min:["Mineure naturelle",[0,2,3,5,7,8,10]],harm:["Mineure harmonique",[0,2,3,5,7,8,11]],mel:["Mineure mélodique",[0,2,3,5,7,9,11]],dor:["Dorienne",[0,2,3,5,7,9,10]],mix:["Mixolydienne",[0,2,4,5,7,9,10]],lyd:["Lydienne",[0,2,4,6,7,9,11]],pm:["Pentatonique majeure",[0,2,4,7,9]],pn:["Pentatonique mineure",[0,3,5,7,10]],bl:["Blues",[0,3,5,6,7,10]]};
+ const WM=["C","G","D","A","E","B","F#","Db","Ab","Eb","Bb","F"],WP=[0,7,2,9,4,11,6,1,8,3,10,5],Wm=["Am","Em","Bm","F#m","C#m","G#m","Ebm","Bbm","Fm","Cm","Gm","Dm"],Wmp=[9,4,11,6,1,8,3,10,5,0,7,2];
+ let fr=true;try{fr=localStorage.getItem("psr_hfr")!="0"}catch(e){}
+ let ctx=null;const play=(ms,strum)=>{try{ctx=ctx||new(window.AudioContext||window.webkitAudioContext)();if(ctx.resume)ctx.resume();const t0=ctx.currentTime+.02;ms.forEach((m,i)=>{const o=ctx.createOscillator(),g=ctx.createGain(),t=t0+(strum?i*.035:0);o.type="triangle";o.frequency.value=440*Math.pow(2,(m-69)/12);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.22/Math.sqrt(ms.length),t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+1.3);o.connect(g);g.connect(ctx.destination);o.start(t);o.stop(t+1.4)})}catch(e){}};
+ const pretty=n=>n.replace("#","♯").replace(/(?<=.)b/,"♭"),dn=n=>{const m=/^([A-G])(.*)$/.exec(n);return m?(fr?FRN[m[1]]:m[1])+pretty("_"+m[2]).slice(1):n};
+ const esc=x=>String(x).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+ function parse(c){const m=/^([A-G])([#b♯♭]?)(.*?)(?:\/([A-G][#b♯♭]?))?$/.exec(String(c).trim());if(!m)return null;const r=(NR[m[1]]+(/[#♯]/.test(m[2])?1:/[b♭]/.test(m[2])?-1:0)+12)%12,q=m[3],l=q.toLowerCase().replace(/[()]/g,"");
+  const half=/m7b5|ø|m7♭5/.test(l),dim=/^(dim|°|o)/.test(l)||half,minor=/^(m(?!aj)|min|-)/.test(l)&&!/^maj/.test(l),aug=/^(aug|\+)/.test(l),s4=/sus4|^sus(?!2)/.test(l),s2=/sus2/.test(l);
+  const th=s4?5:s2?2:(minor||dim)?3:4,fi=(dim)?6:aug?8:7,iv=[0,th,fi];const maj7=/maj7|^m7|ma7|△|Δ|maj9/i.test(q)&&/maj|ma7|△|Δ|M7/.test(q);
+  if(maj7||/mmaj|m\(maj/.test(l))iv.push(11);else if(dim&&!half&&/7/.test(l))iv.push(9);else if(half||/(7|9|11|13)/.test(l.replace(/^(m(?!aj)|min)/,"").replace(/sus4|sus2|add9|6\/9|69/g,"")))iv.push(10);
+  if(/6/.test(l)&&!/6\/9|69/.test(l))iv.push(9);if(/6\/9|69|add9|9|add2/.test(l))iv.push(2);
+  const type=dim?"dim":aug?"aug":(s4||s2)?"sus":minor?"min":"maj",dom=type=="maj"&&iv.includes(10);
+  return{n:c,r,type,dom,iv:[...new Set(iv)],pcs:[...new Set(iv.map(i=>(r+i)%12))],q,midis:[...new Set(iv)].sort((a,b)=>a-b).map(i=>48+r+i)}}
+ const DQ={maj:[[0,"maj"],[2,"min"],[4,"min"],[5,"maj"],[7,"maj"],[9,"min"],[11,"dim"]],min:[[0,"min"],[2,"dim"],[3,"maj"],[5,"min"],[7,"min"],[8,"maj"],[10,"maj"]]};
+ const DEG={maj:{0:"I",2:"II",4:"III",5:"IV",7:"V",9:"VI",11:"VII",1:"♭II",3:"♭III",6:"♯IV",8:"♭VI",10:"♭VII"},min:{0:"I",2:"II",3:"III",5:"IV",7:"V",8:"VI",10:"VII",1:"♭II",4:"♯III",6:"♯IV",9:"♯VI",11:"♯VII"}};
+ const FN={1:"T",3:"T",6:"T",2:"SD",4:"SD",5:"D",7:"D"},FC={T:"#2e9d5b",SD:"#3b7ddd",D:"#e08a1e",X:"#8a8a8a"};
+ function diatonic(c,k){const d=(c.r-k.pc+12)%12,tbl=DQ[k.mode].find(x=>x[0]==d);if(tbl&&tbl[1]==c.type)return true;if(k.mode=="min"){if(d==7&&c.type=="maj")return true;if(d==11&&c.type=="dim")return true}if(k.mode=="maj"&&d==7&&c.type=="maj")return true;return c.type=="sus"&&!!tbl}
+ function roman(c,k){const d=(c.r-k.pc+12)%12,base=DEG[k.mode][d];let low=(c.type=="min"||c.type=="dim");let s=low?base.toLowerCase():base;const q=c.q.replace(/^(m(?!aj)|min|-)/,"").replace(/^dim/,"").replace(/m7b5|ø/,"");s=s.replace(/[♭♯]?[ivxIVX]+/,x=>x);if(c.type=="dim")s+="°";if(/m7b5|ø|m7♭5/.test(c.q))s=s.replace("°","")+"ø";if(c.type=="aug")s+="+";s+=q.replace(/[()]/g,"");return s}
+ function degNum(c,k){const d=(c.r-k.pc+12)%12,t=DQ[k.mode].findIndex(x=>x[0]==d);return t<0?0:t+1}
+ function analyse(c,k){const dia=diatonic(c,k),dn_=degNum(c,k);let lab=roman(c,k),fn=dia&&dn_?FN[dn_]:"X";
+  if(!dia&&c.type=="maj"){const tg=(c.r+7)%12,t2=DQ[k.mode].find(x=>x[0]==(tg-k.pc+12)%12);if(t2&&t2[0]!=0){const i=DQ[k.mode].indexOf(t2);const R=DEG[k.mode][t2[0]],tr_=t2[1]=="maj"?R:R.toLowerCase();lab="V"+(c.dom?"7":"")+"/"+tr_;fn="D"}}
+  return{dia,fn,lab}}
+ function detect(seq){const cs=seq.map(parse).filter(Boolean);if(!cs.length)return null;const cnt={};cs.forEach(c=>cnt[c.n]=(cnt[c.n]||0)+1);const u=[...new Map(cs.map(c=>[c.n,c])).values()];let best=null;
+  for(const mode of["maj","min"])for(let pc=0;pc<12;pc++){const k={pc,mode};let sc=0;u.forEach(c=>{sc+=(diatonic(c,k)?1:-.6)*cnt[c.n]});const f=cs[0],l=cs[cs.length-1];if(f.r==pc&&(f.type=="min")==(mode=="min"))sc+=2;if(l.r==pc&&(l.type=="min")==(mode=="min"))sc+=1.5;if(!best||sc>best.sc)best={...k,sc}}return best}
+ const keyName=k=>(k.mode=="maj"?KM:Km)[k.pc]+(k.mode=="min"?"m":"");
+ const flatPref=k=>{const n=(k.mode=="maj"?KM:Km)[k.pc];return n.includes("b")||(k.mode=="maj"&&n=="F")||(k.mode=="min"&&["D","G","C","F"].includes(n))};
+ const GEN=[["C","Db","D","Eb","E","F","Gb","G","Ab","A","Bb","B"],["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"]];
+ function spell(k,ints){const names={},tn=(k.mode=="maj"?KM:Km)[k.pc],li=LET.indexOf(tn[0]);if(ints.length==7){ints.forEach((iv,i)=>{const L=LET[(li+i)%7],tg=(k.pc+iv)%12,df=((tg-NR[L]+18)%12)-6;names[tg]=L+(df>0?"#".repeat(df):"b".repeat(-df))})}else{const g=GEN[flatPref(k)?0:1];ints.forEach(iv=>{names[(k.pc+iv)%12]=g[(k.pc+iv)%12]})}return names}
+ const sig=k=>{const maj=k.mode=="maj"?k.pc:(k.pc+3)%12;let n=(maj*7)%12;if(n>6)n-=12;return n>0?n+"♯":n<0?(-n)+"♭":"aucune"};
+ function triadName(root,third,fifth,sev,names){const q=[third,fifth],r=names[root]||"?";let s="";if(third==3&&fifth==6)s="°";else if(third==3)s="m";else if(fifth==8)s="+";if(sev==null)return r+s;if(sev==11)return r+(third==3?"m(maj7)":"maj7");if(sev==10)return r+(third==3&&fifth==6?"ø":third==3?"m7":"7");return r+s+"7"}
+ function mount(el,o){const seqAll=o.seq.map(parse).filter(Boolean);if(seqAll.length<2){el.innerHTML="";return}
+  const det=detect(o.seq),ov=o.tkey?String(o.tkey).split(":"):null;
+  let key=ov?{mode:ov[0],pc:(+ov[1]+(o.t||0)+120)%12}:det,scale=key.mode,sev=false,sel=null,path=false;
+  const names0=()=>spell(key,SC[scale][1]);
+  const chordObjs=()=>{const m=new Map();seqAll.forEach(c=>{const e=m.get(c.n);if(e)e.k++;else m.set(c.n,{...c,k:1})});return[...m.values()]};
+  function kb(names){const ints=SC[scale][1],sc=new Set(ints.map(i=>(key.pc+i)%12)),ch=sel?new Set(sel.pcs):new Set(),W=24,H=118;let w="",b="";
+   for(let i=0;i<15;i++){const pc=[0,2,4,5,7,9,11][i%7],mi=48+12*Math.floor(i/7)+pc,on=sc.has(pc),ton=pc==key.pc,deg=on?(ints.findIndex(x=>(key.pc+x)%12==pc)+1):0;
+    w+=`<g data-k="${mi}"><rect x="${i*W}" y="0" width="${W-1}" height="${H}" rx="3" fill="#fff" stroke="#999"/>${on?`<rect x="${i*W}" y="0" width="${W-1}" height="${H}" rx="3" fill="var(--ac)" opacity="${ton?.85:.28}"/>`:""}${on?`<text x="${i*W+W/2-.5}" y="${H-24}" font-size="9" text-anchor="middle" fill="${ton?"#fff":"#333"}">${esc(dn(names[pc]||""))}</text><text x="${i*W+W/2-.5}" y="${H-10}" font-size="11" font-weight="700" text-anchor="middle" fill="${ton?"#fff":"#333"}">${deg}</text>`:""}${ch.has(pc)?`<circle cx="${i*W+W/2-.5}" cy="${H-44}" r="6" fill="var(--chord)" stroke="#fff" stroke-width="1.5"/>`:""}</g>`;
+    if([0,1,3,4,5].includes(i%7)){const bp=pc+1,bm=mi+1,on2=sc.has(bp),x=i*W+W-8;b+=`<g data-k="${bm}"><rect x="${x}" y="0" width="16" height="70" rx="2" fill="#222"/>${on2?`<rect x="${x}" y="0" width="16" height="70" rx="2" fill="var(--ac)" opacity="${bp==key.pc?.95:.6}"/>`:""}${on2?`<text x="${x+8}" y="56" font-size="8" text-anchor="middle" fill="#fff">${ints.findIndex(v=>(key.pc+v)%12==bp)+1}</text>`:""}${ch.has(bp)?`<circle cx="${x+8}" cy="40" r="5" fill="var(--chord)" stroke="#fff" stroke-width="1.5"/>`:""}</g>`}}
+   return`<svg viewBox="0 0 ${15*W} ${H}" style="width:100%;height:auto;display:block;touch-action:manipulation" role="img" aria-label="Clavier : notes de la gamme">${w}${b}</svg>`}
+  function wheel(cs){const R=[100,72,44],pol=(r,a)=>[110+r*Math.cos(a),110+r*Math.sin(a)],arc=(r1,r2,a1,a2)=>{const[x1,y1]=pol(r2,a1),[x2,y2]=pol(r2,a2),[x3,y3]=pol(r1,a2),[x4,y4]=pol(r1,a1);return`M${x1} ${y1}A${r2} ${r2} 0 0 1 ${x2} ${y2}L${x3} ${y3}A${r1} ${r1} 0 0 0 ${x4} ${y4}Z`};
+   const majPc=key.mode=="maj"?key.pc:(key.pc+3)%12,p=WP.indexOf(majPc),inArc=i=>[(p+11)%12,p,(p+1)%12].includes(i),tonO=key.mode=="maj"?p:-1,tonI=key.mode=="min"?p:-1;let g="";
+   for(let i=0;i<12;i++){const a1=-Math.PI/2+(i-.5)*Math.PI/6,a2=a1+Math.PI/6,am=(a1+a2)/2;
+    for(const[ring,rr,nm,pcs,ton]of[[0,[R[0],R[1]],WM,WP,tonO],[1,[R[1],R[2]],Wm,Wmp,tonI]]){const f=ton==i?"var(--ac)":inArc(i)?"color-mix(in srgb,var(--ac) 25%,var(--bg))":"var(--card)";const[tx,ty]=pol((rr[0]+rr[1])/2,am);g+=`<g data-w="${ring?"m":"M"}${pcs[i]}"><path d="${arc(rr[1],rr[0],a1,a2)}" fill="${f}" stroke="var(--line)"/><text x="${tx}" y="${ty+3}" font-size="${ring?9:11}" text-anchor="middle" fill="${ton==i?"#fff":"var(--fg)"}" font-weight="${ton==i||inArc(i)?700:400}">${esc(dn(nm[i]))}</text></g>`}}
+   const pos=c=>{const minor=c.type=="min"||c.type=="dim",i=(minor?Wmp:WP).indexOf(c.r);if(i<0)return null;const am=-Math.PI/2+i*Math.PI/6;return pol(minor?58:86,am)};
+   if(path){const pts=[];let last="";seqAll.forEach(c=>{if(c.n==last)return;last=c.n;const q=pos(c);if(q)pts.push(q)});if(pts.length>1)g+=`<polyline points="${pts.map(q=>q.map(v=>v.toFixed(1)).join(",")).join(" ")}" fill="none" stroke="var(--chord)" stroke-width="1.5" opacity=".55" stroke-linejoin="round" pointer-events="none"/>`}
+   cs.forEach(c=>{const q=pos(c);if(!q)return;const s_=sel&&sel.n==c.n;g+=`<circle cx="${q[0]}" cy="${q[1]+11}" r="${s_?6:3+Math.min(3,c.k/3)}" fill="var(--chord)" stroke="${s_?"var(--fg)":"#fff"}" stroke-width="1.5" pointer-events="none"/>`});
+   return`<svg viewBox="0 0 220 220" style="width:100%;max-width:340px;display:block;margin:0 auto;touch-action:manipulation" role="img" aria-label="Cycle des quintes">${g}<text x="110" y="107" font-size="9" text-anchor="middle" fill="var(--mut)">cycle des</text><text x="110" y="119" font-size="9" text-anchor="middle" fill="var(--mut)">quintes</text></svg>`}
+  function draw(){const names=names0(),ints=SC[scale][1],cs=chordObjs(),kn=keyName(key);let rel=key.mode=="maj"?(Km[(key.pc+9)%12]+"m"):(KM[(key.pc+3)%12]),par=key.mode=="maj"?(Km[key.pc]+"m"):(KM[key.pc]);
+   const an=cs.map(c=>({c,...analyse(c,key)}));
+   const chips=an.map((a,i)=>`<button type="button" class="hc ${sel&&sel.n==a.c.n?"on":""}" data-c="${i}" style="--fc:${FC[a.fn]}"><b>${esc(dn(a.c.n.replace(/[A-G][#b♯♭]?/,m=>m)).replace(/^(Do|Ré|Mi|Fa|Sol|La|Si)/,x=>fr?x:x))}</b><small>${esc(a.lab)}${a.c.k>1?" ×"+a.c.k:""}</small></button>`).join("");
+   let seqS=[],last="";seqAll.forEach(c=>{const a=analyse(c,key);if(a.lab!=last){seqS.push(a.lab);last=a.lab}});if(seqS.length>20)seqS=seqS.slice(0,20).concat("…");
+   let tab="";if(ints.length==7){const nm=names,rows=[];for(let i=0;i<7;i++){const r=(key.pc+ints[i])%12,t3=(ints[(i+2)%7]-ints[i]+12)%12,f5=(ints[(i+4)%7]-ints[i]+12)%12,s7=(ints[(i+6)%7]-ints[i]+12)%12,nmn=triadName(r,t3,f5,sev?s7:null,nm),ty=t3==3&&f5==6?"dim":t3==3?"min":f5==8?"aug":"maj",rn=(ty=="min"||ty=="dim")?["i","ii","iii","iv","v","vi","vii"][i]:["I","II","III","IV","V","VI","VII"][i],fn=FN[i+1];
+     const pcs=[0,t3,f5].concat(sev?[s7]:[]).map(x=>(r+x)%12),used=cs.some(c=>c.r==r&&c.type==ty);rows.push(`<button type="button" class="hc ${sel&&sel.n==nmn?"on":""}" data-d="${i}" style="--fc:${FC[fn]}"><b>${esc(dn(nmn))}</b><small>${rn+(ty=="dim"?"°":ty=="aug"?"+":"")}${sev?"7":""}${used?" ●":""}</small></button>`)}tab=rows.join("")}
+   el.innerHTML=`<div class="hm"><div class="hrow"><label>Tonalité <select id="hk">${[0,1].map(m=>(m?Km:KM).map((n,pc)=>`<option value="${m?"min":"maj"}:${pc}" ${key.mode==(m?"min":"maj")&&key.pc==pc?"selected":""}>${esc(dn(n))}${m?" mineur":" majeur"}${det&&det.mode==(m?"min":"maj")&&det.pc==pc&&!ov?" (détectée)":""}</option>`).join("")).join("")}</select></label><label>Gamme <select id="hs">${Object.entries(SC).map(([k,v])=>`<option value="${k}" ${k==scale?"selected":""}>${v[0]}</option>`).join("")}</select></label></div>
+   <div class="mq">${esc(dn(kn.replace(/m$/,"")))}${key.mode=="min"?" mineur":" majeur"} · armure : ${sig(key)} · relative : ${esc(dn(rel.replace(/m$/,"")))}${key.mode=="maj"?" mineur":" majeur"} · notes : ${ints.map(i=>esc(dn(names[(key.pc+i)%12]))).join(" ")}</div>
+   <div id="hkb" style="margin:6px 0">${kb(names)}</div><div class="mq" id="hsel">${sel?"Accord "+esc(dn(sel.n))+" : "+sel.pcs.map(p=>esc(dn(names[p]||GEN[flatPref(key)?0:1][p]))).join(" – "):"Touchez une touche, un accord ou la roue pour l'entendre."}</div>
+   <div class="sec-t" style="margin:10px 0 4px"><b>Accords du morceau</b></div><div class="hch">${chips}</div><div class="mq">Progression : ${esc(seqS.join(" – "))}</div><div class="mq"><span style="color:${FC.T}">■</span> Tonique (repos) · <span style="color:${FC.SD}">■</span> Sous-dominante (départ) · <span style="color:${FC.D}">■</span> Dominante (tension) · <span style="color:${FC.X}">■</span> hors tonalité</div>
+   ${tab?`<div class="sec-t" style="margin:10px 0 4px"><b>Accords de la tonalité</b> <label style="font-weight:400;font-size:13px"><input type="checkbox" id="h7" ${sev?"checked":""}> 7es</label></div><div class="hch">${tab}</div><div class="mq">● = utilisé dans ce morceau</div>`:""}
+   <div class="sec-t" style="margin:10px 0 4px"><b>Cycle des quintes</b> <button type="button" class="hc" id="hp" style="display:inline-flex;min-width:0;padding:2px 8px">${path?"〰 Parcours ✓":"〰 Parcours"}</button> <button type="button" class="hc" id="hn" style="display:inline-flex;min-width:0;padding:2px 8px">${fr?"Do Ré Mi → C D E":"C D E → Do Ré Mi"}</button></div><div id="hw">${wheel(cs)}</div><div class="mq">Zone colorée = les 6 accords de la tonalité ; points bleus = accords du morceau.</div></div>`;
+   const sh=(o2,play_)=>{sel=o2;if(play_)play(o2.midis,true);draw()};
+   el.querySelector("#hk").onchange=e=>{const[m,pc]=e.target.value.split(":");key={mode:m,pc:+pc};scale=m;sel=null;if(o.save)o.save(m+":"+((+pc-(o.t||0)+120)%12));draw()};
+   el.querySelector("#hs").onchange=e=>{scale=e.target.value;sel=null;draw()};
+   const h7=el.querySelector("#h7");if(h7)h7.onchange=()=>{sev=h7.checked;draw()};
+   el.querySelector("#hp").onclick=()=>{path=!path;draw()};el.querySelector("#hn").onclick=()=>{fr=!fr;try{localStorage.setItem("psr_hfr",fr?"1":"0")}catch(e){}draw()};
+   el.querySelectorAll("[data-c]").forEach(b=>b.onclick=()=>sh(cs[+b.dataset.c],1));
+   el.querySelectorAll("[data-d]").forEach(b=>b.onclick=()=>{const i=+b.dataset.d,r=(key.pc+ints[i])%12,iv=[0,(ints[(i+2)%7]-ints[i]+12)%12,(ints[(i+4)%7]-ints[i]+12)%12].concat(sev?[(ints[(i+6)%7]-ints[i]+12)%12]:[]);const t3=iv[1],f5=iv[2],nm=triadName(r,t3,f5,sev?iv[3]:null,names);sh({n:nm,pcs:iv.map(x=>(r+x)%12),midis:iv.map(x=>48+r+x)},1)});
+   el.querySelectorAll("#hkb [data-k]").forEach(k=>k.onclick=()=>play([+k.dataset.k],false));
+   el.querySelectorAll("#hw [data-w]").forEach(k=>k.onclick=()=>{const t=k.dataset.w,m=t[0]=="m",pc=+t.slice(1),iv=m?[0,3,7]:[0,4,7];sh({n:(m?Km:KM)[pc]+(m?"m":""),pcs:iv.map(x=>(pc+x)%12),midis:iv.map(x=>48+pc+x)},1)})}
+  draw()}
+ return{mount}})();
+
 function keyOf(txt){const m=(txt||"").match(/\[([A-G][#b]?)(m(?!aj))?/);if(!m)return null;const i=N.indexOf(FL[m[1]]||m[1]);return i<0?null:{i,min:!!m[2]}}
 const hl=s=>esc(s).replace(/\b(MD|MG)\b/g,'<b class="h$1">$1</b>').replace(/[·─]/g,'<span class="mu">$&</span>');
 function chords(txt,t,lsn){const E=lsn?hl:esc;return (txt||"").split("\n").map(l=>{
@@ -672,12 +748,14 @@ function pipOpen(id,sid){pipClose();const p=document.createElement("div");p.id="
  h.onpointermove=e=>{if(!dr)return;const r=p.getBoundingClientRect();p.style.left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-dx))+"px";p.style.top=Math.max(0,Math.min(innerHeight-r.height,e.clientY-dy))+"px";p.style.right="auto";p.style.bottom="auto"};
  h.onpointerup=h.onpointercancel=()=>{dr=0}}
 addEventListener("resize",pipFit);
+let harmOpen=(()=>{try{return localStorage.getItem("psr_harm")==="1"}catch(e){return false}})();
 let infoOpen=(()=>{try{return localStorage.getItem("psr_info")!=="0"}catch(e){return true}})();
 let midTr=0;
 function show(){
  const i=db.findIndex(s=>s.id==view.id),s=db[i];if(!s)return go({n:"list"});
  if(!view.t0){view.t0=1;view.t=s.tr||0}midTr=view.t||0;
  hd(s.titre,()=>go(view.sess?{n:"sv",id:view.sess}:{n:"list"}),`<button class="ib" id="pv">‹</button><button class="ib" id="nx">›</button><button class="ib" id="ed">✎</button>`);
+ const hSeq=isLesson(s)?[]:[...(s.accords||"").matchAll(/\[([^\]]+)\]/g)].map(m=>tr(m[1].trim(),view.t||0)),hOk=hSeq.length>=2;
  const F=(l,v)=>v?`<div><span>${l}</span>${esc(v)}</div>`:"",vids=[s.url,s.url2].filter(Boolean);
  $("#app").innerHTML=`<div id="cp" class="cp hide"></div><div class="tmr"><span id="tmc"></span><button class="btn sec" id="tmp" type="button" aria-label="Pause du chrono">⏸</button><button class="btn sec" id="tme" type="button">✎ Temps</button><button class="btn sec" id="mtb" type="button" aria-label="Métronome">♩ Métronome</button><button class="btn sec" id="mtf" type="button" aria-label="Métronome : réglages complets">⚙</button>${view.sess?`<button class="btn" id="tmd" type="button">✓ Fait</button>`:""}</div>${view.sess?`<div class="tmr" id="snr"><span id="snt" style="white-space:pre-line"></span><button class="btn sec" id="sne" type="button">📝 Note de session</button></div>`:""}<div class="sec-t tg" id="tgi"><span id="tga">${infoOpen?"▾":"▸"}</span><b>Informations</b></div><div id="infob" class="${infoOpen?"":"hide"}"><div class="grid">${F("Type",s.type)}${F("Objectif",s.objectif)}${F("Durée prévue",s.duree?s.duree+" min":"")}${F("Interprète",s.interprete)}<div><span>Statut</span><b class="${cls(s.statut)}">${esc(s.statut)}</b></div>${F("Clavier",s.clavier)}${F("Style",s.style)}${F("Registration",s.registration)}${F("Tempo",s.tempo)}${F("Voix 1",s.voix1)}${F("Voix 2",s.voix2)}${F("Date perform.",s.date)}<div><span>Note</span>${"★".repeat(s.note||0)}${"☆".repeat(5-(s.note||0))}</div></div>${s.remarques?`<div class="grid" style="margin-top:8px;grid-template-columns:1fr"><div><span>Remarques</span>${isLesson(s)?hl(s.remarques):esc(s.remarques)}</div></div>`:""}
  ${s.hyperlink?`<div class="sec-t">Lien</div><div style="padding:0 12px"><a href="${esc(s.hyperlink)}" target="_blank" rel="noopener">🔗 ${esc(s.hyperlink.slice(0,60))}</a></div>`:""}</div>
@@ -687,10 +765,12 @@ function show(){
  ${s.audio?`<div class="mc"><div class="mh">🎵 Audio<small>${esc(s.audio)}</small></div><div class="mb" id="mb-audio">Chargement…</div></div>`:""}
  ${s.midi?`<div class="mc"><div class="mh">🎹 MIDI<small>${esc(s.midi)}</small></div><div class="mb" id="mb-midi">Chargement…</div></div>`:""}
  ${!vids.length&&!s.audio&&!s.midi?'<div class="mq" style="margin:8px 0">Aucun média (à ajouter via ✎)</div>':""}</div>
+ ${hOk?`<div class="sec-t tg" id="tgh"><span id="tgha">${harmOpen?"▾":"▸"}</span><b>🎓 Harmonie</b></div><div id="harb" class="${harmOpen?"":"hide"}"></div>`:""}
  <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button>${(()=>{const k=isLesson(s)?null:keyOf(s.accords);if(!k)return'<span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span>';const cur=((k.i+view.t)%12+12)%12;return `<label style="display:flex;align-items:center;gap:6px">Tonalité <select id="tk">${KN.map((n,j)=>`<option value="${j}" ${j==cur?"selected":""}>${n}${k.min?"m":""}${j==k.i?" (originale)":""}</option>`).join("")}</select></label>`})()}${view.t?'<button class="btn sec" id="t0" type="button">↺ Tonalité d\'origine</button>':""}</div><div class="song">${chords(s.accords,view.t,isLesson(s))||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
  document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt,s.id));
  $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
  $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c)};
+ if(hOk){const hm=()=>HARM.mount($("#harb"),{seq:hSeq,t:view.t||0,tkey:s.tkey,save:v=>{s.tkey=v;touch(s.id);save()}});if(harmOpen)hm();$("#tgh").onclick=()=>{harmOpen=!harmOpen;try{localStorage.setItem("psr_harm",harmOpen?"1":"0")}catch(e){}$("#tgha").textContent=harmOpen?"▾":"▸";$("#harb").classList.toggle("hide",!harmOpen);if(harmOpen)hm()}}
  $("#tgm").onclick=()=>{mediaOpen=!mediaOpen;try{localStorage.setItem("psr_media",mediaOpen?"1":"0")}catch(e){}$("#tgma").textContent=mediaOpen?"▾":"▸";$("#medb").classList.toggle("hide",!mediaOpen)};
  asBar();
  tmWire(s);if(s.seq)kbInit(s);loadMedia(s);refreshSong(s.id);
@@ -737,7 +817,7 @@ function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").repla
 function menu(){
  const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
  o.innerHTML=`<div style="background:var(--bg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px">
- <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches · version 23</div>
+ <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches · version 24</div>
  <label class="btn sec" style="text-align:center;cursor:pointer;font-size:16px;color:var(--fg);margin:0">Importer un fichier JSON<input type="file" id="mi" accept=".json,application/json,text/plain,*/*" style="display:none"></label>
  <button class="btn sec" id="m4">Synchroniser maintenant</button>
  <button class="btn sec" id="m1">Exporter tout (JSON, avec fichiers)</button>
