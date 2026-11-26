@@ -26,6 +26,7 @@ input[type=search],input[type=password],input[type=text],input[type=number],inpu
 .count{padding:8px 12px;color:var(--mut);font-size:13px}
 .hm{padding:0 12px 8px}.hrow{display:flex;gap:10px;flex-wrap:wrap}.hrow label{font-size:14px;display:flex;align-items:center;gap:6px}.hch{display:flex;flex-wrap:wrap;gap:6px}.hc{display:inline-flex;flex-direction:column;align-items:center;min-width:48px;padding:4px 8px;border:2px solid var(--fc,var(--line));background:var(--card);color:var(--fg);border-radius:8px;font:inherit;cursor:pointer}.hc small{font-size:11px;color:var(--mut)}.hc.on{background:var(--fc,var(--chord));color:#fff}.hc.on small{color:#fff}
 i.vc{border-bottom:2px solid var(--ac)}
+.sver{font-size:11px;color:var(--mut);text-align:center;opacity:.7;padding:0 0 4px}
 .sec-t{color:var(--chord);font-weight:600;margin:16px 12px 6px}
 .grid div{white-space:pre-line}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;padding:0 12px}.grid div span{display:block;color:var(--mut);font-size:12px}
 .song{font-family:ui-monospace,monospace;font-size:15px;padding:8px 12px;overflow-x:auto}
@@ -183,12 +184,13 @@ const prog=S=>[S.items.filter(i=>i.done).length,S.items.length];
 const sessTime=S=>S.day?S.items.reduce((a,i)=>a+logSec(i.sid,S.day),0):0;
 /* barre latérale */
 const NAV=[["list","🎹","Fiches"],["sess","📋","Sessions"],["cal","📅","Calendrier"],["stats","📊","Statistiques"]],GRP={list:"list",show:"list",edit:"list",sess:"sess",sv:"sess",sed:"sess",cal:"cal",stats:"stats"};
+const VER=28;
 const wide=()=>matchMedia("(min-width:900px)").matches;
 let sideOpen=wide()&&jget("psr_side")!==0;
 function sideBuild(){if($("#side"))return;const a=document.createElement("aside");a.id="side";document.body.appendChild(a);const s=document.createElement("div");s.id="scrim";s.onclick=()=>{sideOpen=false;sideApply()};document.body.appendChild(s);
- a.onclick=e=>{const b=e.target.closest("[data-n]");if(!b)return;const n=b.dataset.n;if(n=="__close"){sideToggle();return}if(!wide())sideOpen=false;sideApply();if(n=="__met"){const c=view.n=="show"?db.find(x=>x.id==view.id):null;MET.open(c?parseInt(c.tempo)||0:0);return}if(n=="__sync"){sync(true);return}if(n=="__menu"){menu();return}go({n})}}
+ a.onclick=e=>{const b=e.target.closest("[data-n]");if(!b)return;const n=b.dataset.n;if(n=="__close"){sideToggle();return}if(!wide())sideOpen=false;sideApply();if(n=="__kbd"){KBD.open();return}if(n=="__met"){const c=view.n=="show"?db.find(x=>x.id==view.id):null;MET.open(c?parseInt(c.tempo)||0:0);return}if(n=="__sync"){sync(true);return}if(n=="__menu"){menu();return}go({n})}}
 function sideApply(){sideBuild();const now=ymd(),T=sessAll().filter(x=>x.day==now),[d,n]=T.reduce((p,S)=>{const q=prog(S);return [p[0]+q[0],p[1]+q[1]]},[0,0]);
- $("#side").innerHTML=`<div class="sh"><b>🎹 PSR Chansons</b><button data-n="__close" type="button" aria-label="Fermer">‹</button></div>`+NAV.map(([k,i,l])=>`<button class="nv ${GRP[view.n]==k?"on":""}" data-n="${k}" type="button">${i} ${l}</button>`).join("")+`<div class="sdy">Aujourd'hui<br><b>${hm(daySec(now))}</b>${n?" · "+d+"/"+n+" fiches":""}</div><div style="flex:1"></div><button class="nv" data-n="__met" type="button">♩ Métronome</button><button class="nv" data-n="__sync" type="button">🔄 Synchroniser</button><button class="nv" data-n="__menu" type="button">⋮ Menu</button>`;
+ $("#side").innerHTML=`<div class="sh"><b>🎹 PSR Chansons</b><button data-n="__close" type="button" aria-label="Fermer">‹</button></div>`+NAV.map(([k,i,l])=>`<button class="nv ${GRP[view.n]==k?"on":""}" data-n="${k}" type="button">${i} ${l}</button>`).join("")+`<div class="sdy">Aujourd'hui<br><b>${hm(daySec(now))}</b>${n?" · "+d+"/"+n+" fiches":""}</div><div style="flex:1"></div><button class="nv" data-n="__kbd" type="button">🎹 Clavier</button><button class="nv" data-n="__met" type="button">♩ Métronome</button><button class="nv" data-n="__sync" type="button">🔄 Synchroniser</button><button class="nv" data-n="__menu" type="button">⋮ Menu</button><div class="sver">version ${VER}</div>`;
  document.body.classList.toggle("sideopen",sideOpen);document.body.classList.toggle("docked",sideOpen&&wide())}
 function sideToggle(){sideOpen=!sideOpen;if(wide())jset("psr_side",sideOpen?1:0);sideApply()}
 /* écrans */
@@ -556,18 +558,24 @@ function pianoSVG(ci){
 let curChord=null,vo=null,curIdx=-1;
 const FRS=["Do","Do♯","Ré","Ré♯","Mi","Fa","Fa♯","Sol","Sol♯","La","La♯","Si"],FRB=["Do","Ré♭","Ré","Mi♭","Mi","Fa","Sol♭","Sol","La♭","La","Si♭","Si"],LTR=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"],LTB=["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"];
 const fnote=m=>(ACCP=="b"?FRB:FRS)[((m%12)+12)%12],lnote=m=>(ACCP=="b"?LTB:LTR)[((m%12)+12)%12],BKP={1:1,3:1,6:1,8:1,10:1};
-function voSVG(l,r,ed){const all=[...l,...r];let lo=36,hi=83;if(all.length){const a=Math.floor(Math.min(...all)/12)*12,z=Math.floor(Math.max(...all)/12)*12+11;if(ed){lo=Math.min(lo,a);hi=Math.max(hi,z)}else{lo=a;hi=Math.max(z,a+23)}}
- const W=ed?28:22,H=ed?120:90,BH=H*.62,BW=W*.6,xs={},col=m=>l.includes(m)?"var(--ac)":r.includes(m)?"var(--chord)":null;let w="",b="",k=0;
- for(let m=lo;m<=hi;m++)if(!BKP[m%12]){xs[m]=k*W;const c=col(m);w+=`<g data-m="${m}"><rect x="${k*W}" y="0" width="${W}" height="${H}" fill="${c||"#fff"}" stroke="#444"/>${c?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">${lnote(m)}</text>`:(m%12==0?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="8" fill="#999">C${Math.floor(m/12)-1}</text>`:"")}</g>`;k++}
- for(let m=lo;m<=hi;m++)if(BKP[m%12]&&xs[m-1]!=null){const x=xs[m-1]+W-BW/2,c=col(m);b+=`<g data-m="${m}"><rect x="${x}" y="0" width="${BW}" height="${BH}" rx="2" fill="${c||"#222"}" stroke="#000"/>${c?`<text x="${x+BW/2}" y="${BH-6}" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">${lnote(m)}</text>`:""}</g>`}
+function voSVG(l,r,ed,hl,rng){const all=[...l,...r];let lo=rng?rng[0]:36,hi=rng?rng[1]:83;if(all.length){const a=Math.floor(Math.min(...all)/12)*12,z=Math.floor(Math.max(...all)/12)*12+11;if(ed){lo=Math.min(lo,a);hi=Math.max(hi,z)}else{lo=a;hi=Math.max(z,a+23)}}
+ const W=ed?28:22,H=ed?120:90,BH=H*.62,BW=W*.6,xs={},col=m=>l.includes(m)?"var(--ac)":r.includes(m)?"var(--chord)":null,hc=m=>hl&&hl.has(m%12)&&!col(m);let w="",b="",k=0;
+ for(let m=lo;m<=hi;m++)if(!BKP[m%12]){xs[m]=k*W;const c=col(m);w+=`<g data-m="${m}"><rect x="${k*W}" y="0" width="${W}" height="${H}" fill="${c||(hc(m)?"color-mix(in srgb,var(--ac) 20%,#fff)":"#fff")}" stroke="#444"/>${hc(m)?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="#555">${lnote(m)}</text>`:""}${c?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">${lnote(m)}</text>`:(m%12==0?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="8" fill="#999">C${Math.floor(m/12)-1}</text>`:"")}</g>`;k++}
+ for(let m=lo;m<=hi;m++)if(BKP[m%12]&&xs[m-1]!=null){const x=xs[m-1]+W-BW/2,c=col(m);b+=`<g data-m="${m}"><rect x="${x}" y="0" width="${BW}" height="${BH}" rx="2" fill="${c||(hc(m)?"color-mix(in srgb,var(--ac) 45%,#222)":"#222")}" stroke="#000"/>${hc(m)?`<text x="${x+BW/2}" y="${BH-6}" text-anchor="middle" font-size="8" fill="#fff">${lnote(m)}</text>`:""}${c?`<text x="${x+BW/2}" y="${BH-6}" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">${lnote(m)}</text>`:""}</g>`}
  return`<svg viewBox="0 0 ${k*W} ${H}" xmlns="http://www.w3.org/2000/svg" style="${ed?`width:${k*W}px;max-width:none`:"width:100%"};display:block">${w}${b}</svg>`}
 function markV(){const s=songNow();document.querySelectorAll(".song i[data-c]").forEach((e,n)=>{const k=vkey(e.dataset.c);e.classList.toggle("vc",!!(s&&s.voic&&(s.voic[k+"@"+n]||s.voic[k])))})}
+const CQ=[["",[0,4,7]],["m",[0,3,7]],["dim",[0,3,6]],["aug",[0,4,8]],["sus4",[0,5,7]],["sus2",[0,2,7]],["7",[0,4,7,10]],["maj7",[0,4,7,11]],["m7",[0,3,7,10]],["m7b5",[0,3,6,10]],["dim7",[0,3,6,9]],["m(maj7)",[0,3,7,11]],["6",[0,4,7,9]],["m6",[0,3,7,9]],["add9",[0,2,4,7]],["7sus4",[0,5,7,10]],["9",[0,4,7,10,2]],["m9",[0,3,7,10,2]],["maj9",[0,4,7,11,2]],["5",[0,7]]];
+function detectCh(ms){if(ms.length<2)return[];const pcs=[...new Set(ms.map(m=>((m%12)+12)%12))],bs=((Math.min(...ms)%12)+12)%12,res=[];
+ pcs.forEach(r=>CQ.forEach(([q,iv],qi)=>{const full=iv.map(i=>(r+i)%12),nof=iv.length>=4&&q!="sus4"?iv.filter(i=>i!=7&&i!=6&&i!=8).map(i=>(r+i)%12):null;
+  const ok=a=>a.length==pcs.length&&a.every(p=>pcs.includes(p));if(ok(full))res.push({r,q,sc:(r==bs?0:50)+qi});else if(nof&&nof.length!=full.length&&ok(nof))res.push({r,q:q+" (sans 5te)",sc:(r==bs?0:50)+qi+30})}));
+ res.sort((a,b)=>a.sc-b.sc);return res.slice(0,4).map(c=>lnote(c.r)+c.q+(c.r!=bs?"/"+lnote(bs):""))}
+const chLine=(l,r)=>{const a=[...l,...r];if(!a.length)return"Touchez des notes sur le clavier";if(a.length==1)return"Note : <b>"+lnote(a[0])+"</b>";const c=detectCh(a);return c.length?"Accord formé : "+c.map((x,i)=>i?"· "+esc(x):"<b>"+esc(x)+"</b>").join(" "):"Accord non identifié"};
 const songNow=()=>db.find(x=>x.id==view.id),vkey=name=>canonKey(trx(name,-(view.t||0),"#")),sumVo=(l,r)=>`MG : ${l.map(fnote).join(" · ")||"—"} · MD : ${r.map(fnote).join(" · ")||"—"}`;
 function defVo(name){const ci=chordInfo(name);if(!ci)return{l:[],r:[]};const lh=48+(ci.bass!=null?ci.bass:ci.r),r0=60+(((ci.r-60)%12)+12)%12,offs=[...new Set(ci.notes.map(p=>(p-ci.r+12)%12))].sort((a,b)=>a-b).filter(o=>ci.bass!=null||o!=0);return{l:[lh],r:offs.map(o=>r0+o)}}
 const LEG='<div style="font-size:11px;color:var(--mut);text-align:center"><b style="color:var(--ac)">■</b> main gauche · <b style="color:var(--chord)">■</b> main droite</div>';
 function paintChord(name){const el=$("#cp"),s=songNow(),ci=chordInfo(name),k=vkey(name),ok=k+"@"+curIdx,loc=!!(s&&s.voic&&s.voic[ok]),ov=s&&s.voic&&(s.voic[ok]||s.voic[k]),t=view.t||0;
  const head=sub=>`<div class="t"><b>${esc(name)}</b><span>${sub}</span><button id="cpx" aria-label="Fermer">✕</button></div>`;let pl=[];
- if(vo){el.innerHTML=head("Édition")+`<div class="tools"><label><input type="radio" name="vh" value="l" ${vo.h=="l"?"checked":""}> Main gauche</label><label><input type="radio" name="vh" value="r" ${vo.h=="r"?"checked":""}> Main droite</label><button class="btn sec" id="vin" type="button">↻ Renverser MD</button><button class="btn sec" id="vop" type="button">▶</button></div><div class="vsc" style="overflow-x:auto">${voSVG(vo.l,vo.r,1)}</div>${LEG}<div class="mq" style="text-align:center">${sumVo(vo.l,vo.r)}</div><div class="tools"><button class="btn" id="vsv" type="button">Enregistrer ici</button><button class="btn sec" id="vsa" type="button">Pour tous les ${esc(name)}</button><button class="btn sec" id="vcn" type="button">Annuler</button></div>`;
+ if(vo){el.innerHTML=head("Édition")+`<div class="tools"><label><input type="radio" name="vh" value="l" ${vo.h=="l"?"checked":""}> Main gauche</label><label><input type="radio" name="vh" value="r" ${vo.h=="r"?"checked":""}> Main droite</label><button class="btn sec" id="vin" type="button">↻ Renverser MD</button><button class="btn sec" id="vop" type="button">▶</button></div><div class="vsc" style="overflow-x:auto">${voSVG(vo.l,vo.r,1)}</div>${LEG}<div class="mq" style="text-align:center">${sumVo(vo.l,vo.r)}</div><div class="mq" style="text-align:center">${chLine(vo.l,vo.r)}</div><div class="tools"><button class="btn" id="vsv" type="button">Enregistrer ici</button><button class="btn sec" id="vsa" type="button">Pour tous les ${esc(name)}</button><button class="btn sec" id="vcn" type="button">Annuler</button></div>`;
   const sc=el.querySelector(".vsc"),all=[...vo.l,...vo.r],lo0=Math.min(36,Math.floor(Math.min(...(all.length?all:[48]))/12)*12),want=Math.floor(Math.min(...(all.length?all:[48]))/12)*12;sc.scrollLeft=vo.sl!=null?vo.sl:Math.max(0,(want-lo0)/12*7*28-6);
   el.querySelectorAll("[data-m]").forEach(g=>g.onclick=()=>{const m=+g.dataset.m,h=vo.h,o=h=="l"?"r":"l";vo.sl=sc.scrollLeft;const A=vo[h],j=A.indexOf(m);if(j>=0)A.splice(j,1);else{A.push(m);A.sort((a,b)=>a-b);vo[o]=vo[o].filter(x=>x!=m)}HARM.play([m],0);paintChord(name)});
   el.querySelectorAll('input[name="vh"]').forEach(x=>x.onchange=()=>{vo.h=x.value});
@@ -599,6 +607,36 @@ function asBar(){if($("#asb"))return;const d=document.createElement("div");d.id=
  $("#ast").onclick=()=>{asStop();scrollTo({top:0})};asUi()}
 
 
+/* ===== Clavier autonome (KBD.open()) ===== */
+const KBD=(()=>{let o=null;const S={l:[],r:[],h:"r",k:-1,sc:"maj",acc:"#"};
+ const SCL={maj:["Majeure",[0,2,4,5,7,9,11]],min:["Mineure naturelle",[0,2,3,5,7,8,10]],harm:["Mineure harmonique",[0,2,3,5,7,8,11]],dor:["Dorienne",[0,2,3,5,7,9,10]],mix:["Mixolydienne",[0,2,4,5,7,9,10]],pm:["Pentatonique majeure",[0,2,4,7,9]],pn:["Pentatonique mineure",[0,3,5,7,10]],bl:["Blues",[0,3,5,6,7,10]]};
+ function paint(keep){ACCP=S.acc;const sc=o.querySelector(".vsc"),x=keep&&sc?sc.scrollLeft:null,hl=S.k>=0?new Set(SCL[S.sc][1].map(i=>(S.k+i)%12)):null,all=[...S.l,...S.r];
+  o.querySelector(".kbd").innerHTML=voSVG(S.l,S.r,1,hl,[36,96]);const c=o.querySelector(".vsc");c.scrollLeft=x!=null?x:(S.first||0);
+  o.querySelector("#kdc").innerHTML=chLine(S.l,S.r);o.querySelector("#kdn").textContent=all.length?sumVo(S.l,S.r):"";
+  o.querySelector("#kda").textContent=S.acc=="b"?"♭ (bémols)":"♯ (dièses)";
+  o.querySelectorAll("[data-m]").forEach(g=>g.onclick=()=>{const m=+g.dataset.m,h=S.h,ot=h=="l"?"r":"l",A=S[h],j=A.indexOf(m);if(j>=0)A.splice(j,1);else{A.push(m);A.sort((a,b)=>a-b);S[ot]=S[ot].filter(v=>v!=m)}HARM.play([m],0);paint(1)})}
+ function open(){if(o)return;o=document.createElement("div");o.className="mfo";
+  o.innerHTML=`<div class="mfc"><div class="mfh"><b>🎹 Clavier</b><button type="button" id="kdx" aria-label="Fermer">✕</button></div>
+  <div class="tools"><label><input type="radio" name="kh" value="l"> Main gauche</label><label><input type="radio" name="kh" value="r" checked> Main droite</label></div>
+  <div class="vsc" style="overflow-x:auto"><div class="kbd"></div></div>
+  <div style="font-size:11px;color:var(--mut);text-align:center"><b style="color:var(--ac)">■</b> main gauche · <b style="color:var(--chord)">■</b> main droite · notes teintées = gamme</div>
+  <div class="mq" id="kdn" style="text-align:center"></div><div class="mq" id="kdc" style="text-align:center;font-size:16px"></div>
+  <div class="tools"><button class="btn" id="kdp" type="button">▶ Jouer</button><button class="btn sec" id="kdi" type="button">↻ Renverser MD</button><button class="btn sec" id="kdr" type="button">✕ Effacer</button><button class="btn sec" id="kda" type="button"></button><button class="btn sec" id="kdf" type="button">💾 Dans une fiche…</button></div><div id="ksv" class="hide" style="display:none;flex-direction:column;gap:8px;border-top:1px solid var(--line);padding-top:8px"></div>
+  <div class="tools"><label>Gamme <select id="kdk"><option value="-1">— aucune —</option>${KN.map((n,i)=>`<option value="${i}">${n}</option>`).join("")}</select></label><select id="kds">${Object.entries(SCL).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join("")}</select></div></div>`;
+  document.body.appendChild(o);S.first=7*28*2-6;const close=()=>{o.remove();o=null};
+  o.onclick=e=>{if(e.target==o)close()};o.querySelector("#kdx").onclick=close;
+  o.querySelectorAll('input[name="kh"]').forEach(x=>x.onchange=()=>{S.h=x.value});
+  o.querySelector("#kdp").onclick=()=>HARM.play([...S.l,...S.r],1);o.querySelector("#kdr").onclick=()=>{S.l=[];S.r=[];paint(1)};
+  o.querySelector("#kdi").onclick=()=>{if(!S.r.length)return;S.r.sort((a,b)=>a-b);S.r.push(S.r.shift()+12);paint(1)};
+  o.querySelector("#kda").onclick=()=>{S.acc=S.acc=="b"?"#":"b";paint(1)};
+  o.querySelector("#kdf").onclick=()=>{const all=[...S.l,...S.r];if(!all.length)return alert("Posez d'abord des notes sur le clavier.");const box=o.querySelector("#ksv");if(box.style.display=="flex"){box.style.display="none";return}
+   const cur=view.n=="show"?view.id:null,L=db.filter(x=>!isLesson(x)&&x.accords).sort((a,b)=>a.titre.localeCompare(b.titre,"fr")),det=detectCh(all).map(n=>n.replace(/ \(sans 5te\)/,""));
+   box.style.display="flex";box.innerHTML=`<label>Fiche <select id="ksf">${L.map(x=>`<option value="${esc(x.id)}" ${x.id==cur?"selected":""}>${esc(x.titre)}</option>`).join("")}</select></label><label>Accord <input type="text" id="ksn" list="ksl" value="${esc(det[0]||"")}" placeholder="ex. C7"></label><datalist id="ksl">${det.map(n=>`<option>${esc(n)}</option>`).join("")}</datalist><div class="mq" id="ksi"></div><button class="btn" id="ksg" type="button">Enregistrer pour tous les accords de ce nom</button>`;
+   const info=()=>{const x=db.find(y=>y.id==box.querySelector("#ksf").value),n=box.querySelector("#ksn").value.trim(),t=x&&x.tr||0;box.querySelector("#ksi").textContent=!x||!n?"":(chordInfo(n)?((x.accords||"").includes("["+trx(n,-t,"#")+"]")||new RegExp("\\[\\s*"+n.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"\\s*\\]").test(txf(x.accords,t,x.acc||autoPref(x.accords,t)))?"Cet accord est dans la grille.":"Cet accord n'apparaît pas dans la grille de cette fiche (enregistré quand même)."):"Nom d'accord non reconnu.")};
+   box.querySelector("#ksf").onchange=info;box.querySelector("#ksn").oninput=info;info();
+   box.querySelector("#ksg").onclick=()=>{const x=db.find(y=>y.id==box.querySelector("#ksf").value),n=box.querySelector("#ksn").value.trim();if(!x||!chordInfo(n))return alert("Choisissez une fiche et un nom d'accord valide.");const t=x.tr||0,k=canonKey(trx(n,-t,"#"));x.voic=x.voic||{};for(const z in x.voic)if(z.startsWith(k+"@"))delete x.voic[z];x.voic[k]={l:S.l.map(v=>v-t),r:S.r.map(v=>v-t)};touch(x.id);save();if(view.n=="show"&&view.id==x.id)show();box.querySelector("#ksi").textContent="✓ Enregistré pour tous les "+n+" de « "+x.titre+" »."}};
+  o.querySelector("#kdk").onchange=e=>{S.k=+e.target.value;paint(1)};o.querySelector("#kds").onchange=e=>{S.sc=e.target.value;paint(1)};paint(0)}
+ return{open}})();
 /* ===== Métronome (module autonome : MET.open(), MET.toggleMini()) ===== */
 const MET=(()=>{
  const K="psr_met",S={bpm:100,num:4,sub:1,acc:1,vol:.7,prog:0,pn:4,pstep:5,pmax:160,mini:0};
@@ -853,7 +891,7 @@ function exportCsv(){const k=Object.keys(db[0]||{}),e=v=>'"'+String(v??"").repla
 function menu(){
  const o=document.createElement("div");o.style.cssText="position:fixed;inset:0;background:#0007;z-index:50;display:flex;align-items:flex-end;justify-content:center";
  o.innerHTML=`<div style="background:var(--bg);width:100%;max-width:520px;border-radius:16px 16px 0 0;padding:16px;display:flex;flex-direction:column;gap:10px">
- <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches · version 26</div>
+ <div style="color:var(--mut);font-size:13px">${esc(syncMsg)||""} · ${db.length} fiches · version ${VER}</div>
  <label class="btn sec" style="text-align:center;cursor:pointer;font-size:16px;color:var(--fg);margin:0">Importer un fichier JSON<input type="file" id="mi" accept=".json,application/json,text/plain,*/*" style="display:none"></label>
  <button class="btn sec" id="m4">Synchroniser maintenant</button>
  <button class="btn sec" id="m1">Exporter tout (JSON, avec fichiers)</button>
