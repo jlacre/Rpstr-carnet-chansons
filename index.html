@@ -28,6 +28,14 @@ input[type=search],input[type=password],input[type=text],input[type=number],inpu
 i.vc{border-bottom:2px solid var(--ac)}
 .sver{font-size:11px;color:var(--mut);text-align:center;opacity:.7;padding:0 0 4px}
 .ovr,.ovq{width:auto!important;flex:1;min-width:90px}
+#cv{position:fixed;left:0;right:0;bottom:58px;z-index:5;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -2px 8px #0002;display:flex;flex-direction:column}body.docked #cv{left:260px}
+.cfr{display:flex;gap:6px;overflow-x:auto;padding:4px 8px;scrollbar-width:none}.cfr::-webkit-scrollbar{display:none}
+.cfc{flex:none;display:flex;flex-direction:column;align-items:center;border:2px solid transparent;border-radius:8px;padding:2px 4px;font-size:13px;cursor:pointer;color:var(--chord)}
+.cfc.on{border-color:var(--chord);background:color-mix(in srgb,var(--chord) 15%,var(--card))}
+.cbd{display:flex;align-items:center;gap:8px;padding:4px 8px}.cbd .cur{flex:1;min-width:0;text-align:center}.cbd .cur b{font-size:22px;color:var(--chord)}.cbd .cur svg{max-height:84px}
+.cbd .nx{width:84px;opacity:.75;text-align:center;font-size:12px}.cbd .nx b{color:var(--chord)}
+.cvt label{font-size:14px;display:flex;align-items:center;gap:4px}
+i.cvm{display:inline-block;vertical-align:top;text-align:center}i.cvn{outline:2px solid var(--chord);outline-offset:1px}
 .sec-t{color:var(--chord);font-weight:600;margin:16px 12px 6px}
 .grid div{white-space:pre-line}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;padding:0 12px}.grid div span{display:block;color:var(--mut);font-size:12px}
 .song{font-family:ui-monospace,monospace;font-size:15px;padding:8px 12px;overflow-x:auto}
@@ -185,7 +193,7 @@ const prog=S=>[S.items.filter(i=>i.done).length,S.items.length];
 const sessTime=S=>S.day?S.items.reduce((a,i)=>a+logSec(i.sid,S.day),0):0;
 /* barre latérale */
 const NAV=[["list","🎹","Fiches"],["sess","📋","Sessions"],["cal","📅","Calendrier"],["stats","📊","Statistiques"]],GRP={list:"list",show:"list",edit:"list",sess:"sess",sv:"sess",sed:"sess",cal:"cal",stats:"stats"};
-const VER=30;
+const VER=31;
 const wide=()=>matchMedia("(min-width:900px)").matches;
 let sideOpen=wide()&&jget("psr_side")!==0;
 function sideBuild(){if($("#side"))return;const a=document.createElement("aside");a.id="side";document.body.appendChild(a);const s=document.createElement("div");s.id="scrim";s.onclick=()=>{sideOpen=false;sideApply()};document.body.appendChild(s);
@@ -559,11 +567,43 @@ function pianoSVG(ci){
 let curChord=null,vo=null,curIdx=-1;
 const FRS=["Do","Do♯","Ré","Ré♯","Mi","Fa","Fa♯","Sol","Sol♯","La","La♯","Si"],FRB=["Do","Ré♭","Ré","Mi♭","Mi","Fa","Sol♭","Sol","La♭","La","Si♭","Si"],LTR=["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B"],LTB=["C","D♭","D","E♭","E","F","G♭","G","A♭","A","B♭","B"];
 const fnote=m=>(ACCP=="b"?FRB:FRS)[((m%12)+12)%12],lnote=m=>(ACCP=="b"?LTB:LTR)[((m%12)+12)%12],BKP={1:1,3:1,6:1,8:1,10:1};
-function voSVG(l,r,ed,hl,rng,ov){ov=ov||[];const all=[...l,...r];let lo=rng?rng[0]:36,hi=rng?rng[1]:83;if(all.length){const a=Math.floor(Math.min(...all)/12)*12,z=Math.floor(Math.max(...all)/12)*12+11;if(ed){lo=Math.min(lo,a);hi=Math.max(hi,z)}else{lo=a;hi=Math.max(z,a+23)}}
+function voSVG(l,r,ed,hl,rng,ov,fit){ov=ov||[];const all=[...l,...r];let lo=rng?rng[0]:36,hi=rng?rng[1]:83;if(all.length){const a=Math.floor(Math.min(...all)/12)*12,z=Math.floor(Math.max(...all)/12)*12+11;if(ed||fit){lo=Math.min(lo,a);hi=Math.max(hi,z)}else{lo=a;hi=Math.max(z,a+23)}}
  const W=ed?28:22,H=ed?120:90,BH=H*.62,BW=W*.6,xs={},col=m=>l.includes(m)?"var(--ac)":r.includes(m)?"var(--chord)":null,hc=m=>hl&&hl.has(m%12)&&!col(m);let w="",b="",k=0;
  for(let m=lo;m<=hi;m++)if(!BKP[m%12]){xs[m]=k*W;const c=col(m);w+=`<g data-m="${m}"><rect x="${k*W}" y="0" width="${W}" height="${H}" fill="${c||(hc(m)?"color-mix(in srgb,var(--ac) 20%,#fff)":"#fff")}" stroke="#444"/>${hc(m)?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="9" fill="#555">${lnote(m)}</text>`:""}${ov.map((q,i)=>q.pcs.includes(m%12)?`<circle cx="${k*W+W/2}" cy="${H-26-i*12}" r="${q.r==m%12?6:4.5}" fill="${q.c}" stroke="#fff" stroke-width="1.5"/>`:"").join("")}${c?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">${lnote(m)}</text>`:(m%12==0?`<text x="${k*W+W/2}" y="${H-6}" text-anchor="middle" font-size="8" fill="#999">C${Math.floor(m/12)-1}</text>`:"")}</g>`;k++}
  for(let m=lo;m<=hi;m++)if(BKP[m%12]&&xs[m-1]!=null){const x=xs[m-1]+W-BW/2,c=col(m);b+=`<g data-m="${m}"><rect x="${x}" y="0" width="${BW}" height="${BH}" rx="2" fill="${c||(hc(m)?"color-mix(in srgb,var(--ac) 45%,#222)":"#222")}" stroke="#000"/>${hc(m)?`<text x="${x+BW/2}" y="${BH-6}" text-anchor="middle" font-size="8" fill="#fff">${lnote(m)}</text>`:""}${ov.map((q,i)=>q.pcs.includes(m%12)?`<circle cx="${x+BW/2}" cy="${BH-22-i*11}" r="${q.r==m%12?5.5:4}" fill="${q.c}" stroke="#fff" stroke-width="1.5"/>`:"").join("")}${c?`<text x="${x+BW/2}" y="${BH-6}" text-anchor="middle" font-size="8" font-weight="700" fill="#fff">${lnote(m)}</text>`:""}</g>`}
- return`<svg viewBox="0 0 ${k*W} ${H}" xmlns="http://www.w3.org/2000/svg" style="${ed?`width:${k*W}px;max-width:none`:"width:100%"};display:block">${w}${b}</svg>`}
+ return`<svg viewBox="0 0 ${k*W} ${H}" xmlns="http://www.w3.org/2000/svg" style="${ed&&!fit?`width:${k*W}px;max-width:none`:"width:100%"};display:block;margin:auto">${w}${b}</svg>`}
+/* ===== Visualisation dynamique des accords (bandeau / mini-claviers / frise) ===== */
+let CVO=(()=>{try{return Object.assign({b:0,m:0,f:0},JSON.parse(localStorage.getItem("psr_cv")||"{}"))}catch(e){return{b:0,m:0,f:0}}})();
+const CV={on:0,idx:0,line:null,nodes:[],voc:[],raf:0,lock:0};
+const cvCtl=()=>`<div class="tools cvt"><span style="font-size:13px;color:var(--mut)">Afficher les accords à jouer :</span><label><input type="checkbox" data-cv="b" ${CVO.b?"checked":""}> Bandeau</label><label><input type="checkbox" data-cv="m" ${CVO.m?"checked":""}> Mini-claviers</label><label><input type="checkbox" data-cv="f" ${CVO.f?"checked":""}> Frise</label></div>`;
+function miniSVG(v,w){const a=[...v.l,...v.r];if(!a.length)return`<svg viewBox="0 0 84 30" style="width:${w}px;height:auto" aria-hidden="true"></svg>`;const lo=Math.floor(Math.min(...a)/12)*12,hi=Math.max(lo+23,Math.floor(Math.max(...a)/12)*12+11),xs={};let n=0,wk="",bk="";
+ const col=m=>v.l.includes(m)?"var(--ac)":v.r.includes(m)?"var(--chord)":null;
+ for(let m=lo;m<=hi;m++)if(!BKP[m%12]){xs[m]=n*6;wk+=`<rect x="${n*6}" y="0" width="6" height="30" fill="${col(m)||"#fff"}" stroke="#888" stroke-width=".5"/>`;n++}
+ for(let m=lo;m<=hi;m++)if(BKP[m%12]&&xs[m-1]!=null)bk+=`<rect x="${xs[m-1]+4}" y="0" width="4" height="18" fill="${col(m)||"#222"}" stroke="#000" stroke-width=".4"/>`;
+ return`<svg viewBox="0 0 ${n*6} 30" style="width:${w}px;height:auto;display:block;margin:2px auto 0" aria-hidden="true">${wk}${bk}</svg>`}
+function voFor(name,idx,s){const t=view.t||0,k=vkey(name),ov=s.voic&&(s.voic[k+"@"+idx]||s.voic[k]);if(ov)return{l:ov.l.map(n=>n+t),r:ov.r.map(n=>n+t)};const d=defVo(name);return{l:d.l,r:d.r}}
+function cvKill(){CV.on=0;["cv","cvsp"].forEach(i=>{const e=document.getElementById(i);if(e)e.remove()})}
+function cvDraw(){const cv=document.getElementById("cv");if(!cv)return;const n=CV.nodes,i=CV.idx,cur=n[i],nx=n[i+1];
+ const bd=cv.querySelector(".cbd");if(bd&&cur){const v=CV.voc[i],nv=nx?CV.voc[i+1]:null;ACCP=ACCP;
+  bd.querySelector(".cur").innerHTML=`<b>${esc(cur.dataset.c)}</b><small style="color:var(--mut);display:block;font-size:11px">${v.l.length||v.r.length?sumVo(v.l,v.r):"accord non reconnu"}</small>${v.l.length||v.r.length?voSVG(v.l,v.r,0,null,[48,83],null,1):""}`;
+  bd.querySelector(".nx").innerHTML=nx?`<small style="display:block">suivant</small><b>${esc(nx.dataset.c)}</b>${miniSVG(nv,70)}`:`<small>fin</small>`}
+ const fr=cv.querySelector(".cfr");if(fr){const prev=fr.querySelector(".cfc.on");if(prev)prev.classList.remove("on");const c=fr.children[i];if(c){c.classList.add("on");fr.scrollTo({left:Math.max(0,c.offsetLeft-fr.clientWidth/2+c.offsetWidth/2),behavior:"smooth"})}}
+ n.forEach(e=>e.classList.remove("cvn"));if(cur)cur.classList.add("cvn")}
+function cvSet(i,scroll){if(!CV.on||i<0||i>=CV.nodes.length)return;CV.idx=i;CV.line=CV.nodes[i].closest(".ln");CV.lock=performance.now()+(scroll?900:0);if(scroll)CV.nodes[i].scrollIntoView({block:"center",behavior:"smooth"});cvDraw()}
+function cvScroll(){if(!CV.on||CV.raf)return;CV.raf=requestAnimationFrame(()=>{CV.raf=0;if(!CV.on||performance.now()<CV.lock)return;const y0=innerHeight*.35,n=CV.nodes;let li=-1;for(let i=0;i<n.length;i++){if(n[i].getBoundingClientRect().top<=y0)li=i;else break}if(li<0)li=0;const L=n[li].closest(".ln");if(L===CV.line)return;CV.line=L;CV.idx=n.findIndex(e=>e.closest(".ln")===L);cvDraw()})}
+addEventListener("scroll",cvScroll,{passive:true});addEventListener("resize",()=>{if(CV.on)cvSizes()});
+function cvSizes(){const cv=document.getElementById("cv"),sp=document.getElementById("cvsp"),a=document.getElementById("asb");if(!cv)return;cv.style.bottom=(a?a.offsetHeight:0)+"px";if(sp)sp.style.height=cv.offsetHeight+"px"}
+function cvInit(s,ok){cvKill();document.querySelectorAll("[data-cv]").forEach(c=>c.onchange=()=>{CVO[c.dataset.cv]=c.checked?1:0;try{localStorage.setItem("psr_cv",JSON.stringify(CVO))}catch(e){}const y=scrollY;show();scrollTo(0,y)});
+ if(!ok||!(CVO.b||CVO.m||CVO.f))return;const nodes=[...document.querySelectorAll(".song i[data-c]")];if(!nodes.length)return;
+ CV.nodes=nodes;CV.voc=nodes.map((e,n)=>voFor(e.dataset.c,n,s));CV.idx=0;CV.line=nodes[0].closest(".ln");CV.on=1;
+ if(CVO.m)nodes.forEach((e,n)=>{if(CV.voc[n].l.length||CV.voc[n].r.length)e.insertAdjacentHTML("beforeend",miniSVG(CV.voc[n],54));e.classList.add("cvm")});
+ if(CVO.b||CVO.f){const cv=document.createElement("div");cv.id="cv";
+  cv.innerHTML=(CVO.f?`<div class="cfr">${nodes.map((e,n)=>`<div class="cfc" data-n="${n}"><b>${esc(e.dataset.c)}</b>${miniSVG(CV.voc[n],46)}</div>`).join("")}</div>`:"")+(CVO.b?`<div class="cbd"><button class="btn sec" id="cvp" type="button" aria-label="Accord précédent">‹</button><div class="cur"></div><div class="nx"></div><button class="btn sec" id="cvn" type="button" aria-label="Accord suivant">›</button></div>`:"");
+  document.body.appendChild(cv);const sp=document.createElement("div");sp.id="cvsp";$("#app").appendChild(sp);
+  cv.querySelectorAll(".cfc").forEach(c=>c.onclick=()=>cvSet(+c.dataset.n,1));
+  const pv=$("#cvp"),nx=$("#cvn");if(pv)pv.onclick=()=>cvSet(CV.idx-1,0);if(nx)nx.onclick=()=>cvSet(CV.idx+1,0);
+  cvSizes();setTimeout(cvSizes,300)}
+ cvDraw();cvScroll()}
 function markV(){const s=songNow();document.querySelectorAll(".song i[data-c]").forEach((e,n)=>{const k=vkey(e.dataset.c);e.classList.toggle("vc",!!(s&&s.voic&&(s.voic[k+"@"+n]||s.voic[k])))})}
 const CQ=[["",[0,4,7]],["m",[0,3,7]],["dim",[0,3,6]],["aug",[0,4,8]],["sus4",[0,5,7]],["sus2",[0,2,7]],["7",[0,4,7,10]],["maj7",[0,4,7,11]],["m7",[0,3,7,10]],["m7b5",[0,3,6,10]],["dim7",[0,3,6,9]],["m(maj7)",[0,3,7,11]],["6",[0,4,7,9]],["m6",[0,3,7,9]],["add9",[0,2,4,7]],["7sus4",[0,5,7,10]],["9",[0,4,7,10,2]],["m9",[0,3,7,10,2]],["maj9",[0,4,7,11,2]],["5",[0,7]]];
 const PAL=["#e08a1e","#2e9d5b","#8a3fb0","#d0287b","#17a2b8","#c2a100"],KOV={ov:[],sel:{r:0,q:0,c:"#e08a1e"}};
@@ -769,7 +809,7 @@ function kbInit(s){kbStop();const Q=s.seq,box=$("#kbs");if(!box)return;
  $("#kbt").oninput=()=>{$("#kbv").textContent=bpm()};
  paint()}
 
-function leaveShow(){tmStop();kbStop();asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
+function leaveShow(){cvKill();tmStop();kbStop();asStop();if(audLp){audLp.destroy();audLp=null};if(midLp){midLp.destroy();midLp=null};clearInterval(midUi);if(midP){midP.dispose();midP=null};const b=$("#asb");if(b)b.remove();curChord=null}
 addEventListener("touchmove",()=>{if(asOn)asStop()},{passive:true});addEventListener("wheel",()=>{if(asOn)asStop()},{passive:true});
 
 /* ===== Lecteur YouTube flottant ===== */
@@ -843,13 +883,13 @@ function show(){
  ${s.midi?`<div class="mc"><div class="mh">🎹 MIDI<small>${esc(s.midi)}</small></div><div class="mb" id="mb-midi">Chargement…</div></div>`:""}
  ${!vids.length&&!s.audio&&!s.midi?'<div class="mq" style="margin:8px 0">Aucun média (à ajouter via ✎)</div>':""}</div>
  ${hOk?`<div class="sec-t tg" id="tgh"><span id="tgha">${harmOpen?"▾":"▸"}</span><b>🎓 Harmonie</b></div><div id="harb" class="${harmOpen?"":"hide"}"></div>`:""}
- <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button>${(()=>{const k=isLesson(s)?null:keyOf(s.accords);if(!k)return'<span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span>';const cur=((k.i+view.t)%12+12)%12;return `<label style="display:flex;align-items:center;gap:6px">Tonalité <select id="tk">${KN.map((n,j)=>`<option value="${j}" ${j==cur?"selected":""}>${n}${k.min?"m":""}${j==k.i?" (originale)":""}</option>`).join("")}</select></label>`})()}${view.t?'<button class="btn sec" id="t0" type="button">↺ Tonalité d\'origine</button><button class="btn sec" id="tfix" type="button">💾 Fixer cette tonalité</button>':""}${isLesson(s)?"":'<button class="btn sec" id="acc" type="button" title="Alterner dièses / bémols">♯⇄♭</button>'}</div><div class="song">${chords(s.accords,view.t,isLesson(s))||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
+ <div class="sec-t">Accords</div><div class="tools"><button class="btn sec" id="m">−</button><b>${view.t>0?"+":""}${view.t}</b><button class="btn sec" id="p">+</button>${(()=>{const k=isLesson(s)?null:keyOf(s.accords);if(!k)return'<span style="color:var(--mut);font-size:13px">transposition (demi-tons)</span>';const cur=((k.i+view.t)%12+12)%12;return `<label style="display:flex;align-items:center;gap:6px">Tonalité <select id="tk">${KN.map((n,j)=>`<option value="${j}" ${j==cur?"selected":""}>${n}${k.min?"m":""}${j==k.i?" (originale)":""}</option>`).join("")}</select></label>`})()}${view.t?'<button class="btn sec" id="t0" type="button">↺ Tonalité d\'origine</button><button class="btn sec" id="tfix" type="button">💾 Fixer cette tonalité</button>':""}${isLesson(s)?"":'<button class="btn sec" id="acc" type="button" title="Alterner dièses / bémols">♯⇄♭</button>'}</div>${hOk?cvCtl():""}<div class="song">${chords(s.accords,view.t,isLesson(s))||'<span style="color:var(--mut)">Aucun accord</span>'}</div>`;
  document.querySelectorAll("[data-yt]").forEach(b=>b.onclick=()=>pipOpen(b.dataset.yt,s.id));
  $("#tgi").onclick=()=>{infoOpen=!infoOpen;try{localStorage.setItem("psr_info",infoOpen?"1":"0")}catch(e){}$("#tga").textContent=infoOpen?"▾":"▸";$("#infob").classList.toggle("hide",!infoOpen)};
- $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c)showChord(c.dataset.c,[...document.querySelectorAll(".song i[data-c]")].indexOf(c))};markV();
+ $("#app").onclick=e=>{const c=e.target.closest("i[data-c]");if(c){const ix=[...document.querySelectorAll(".song i[data-c]")].indexOf(c);cvSet(ix,0);showChord(c.dataset.c,ix)}};markV();
  if(hOk){const hm=()=>HARM.mount($("#harb"),{seq:hSeq,t:view.t||0,tkey:s.tkey,save:v=>{s.tkey=v;touch(s.id);save()}});if(harmOpen)hm();$("#tgh").onclick=()=>{harmOpen=!harmOpen;try{localStorage.setItem("psr_harm",harmOpen?"1":"0")}catch(e){}$("#tgha").textContent=harmOpen?"▾":"▸";$("#harb").classList.toggle("hide",!harmOpen);if(harmOpen)hm()}}
  $("#tgm").onclick=()=>{mediaOpen=!mediaOpen;try{localStorage.setItem("psr_media",mediaOpen?"1":"0")}catch(e){}$("#tgma").textContent=mediaOpen?"▾":"▸";$("#medb").classList.toggle("hide",!mediaOpen)};
- asBar();
+ asBar();cvInit(s,hOk);
  tmWire(s);if(s.seq)kbInit(s);loadMedia(s);refreshSong(s.id);
  const nav=d=>{const S=view.sess&&ext.find(x=>x.id==view.sess),ids=S&&S.items.filter(x=>song(x.sid)).length>1?S.items.map(x=>x.sid).filter(song):db.map(x=>x.id),k=ids.indexOf(s.id);go({n:"show",id:ids[(k+d+ids.length)%ids.length],t:0,sess:view.sess})};
  $("#pv").onclick=()=>nav(-1);$("#nx").onclick=()=>nav(1);$("#ed").onclick=()=>go({n:"edit",id:s.id});
